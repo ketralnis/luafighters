@@ -9,22 +9,51 @@
 
 #include "hellocmodule.h"
 
+struct custom_alloc_data {
+    size_t limit;
+    size_t used;
+};
+
+void* l_alloc_restricted (void *ud, void *ptr, size_t osize, size_t nsize) {
+   struct custom_alloc_data* alloc_data = (struct custom_alloc_data*)ud;
+
+    if (nsize == 0) {
+        free(ptr);
+        alloc_data->used -= osize; /* subtract old size from used memory */
+        return NULL;
+    }
+
+    if (alloc_data->used + (nsize - osize) > alloc_data->limit) {
+        /* too much memory in use */
+        return NULL;
+    }
+
+    ptr = realloc(ptr, nsize);
+    if (ptr) {
+        /* reallocation successful */
+        alloc_data->used += (nsize - osize);
+    }
+
+    return ptr;
+}
+
+
 static PyObject* say_hello(PyObject* self, PyObject* args) {
-    int status, result, i;
     double sum;
-    lua_State *L;
+
+    struct custom_alloc_data alloc_data = {102400, 0};
 
     /*
      * All Lua contexts are held in this structure. We work with it almost
      * all the time.
      */
-    L = luaL_newstate();
+    lua_State *L = lua_newstate(l_alloc_restricted, &alloc_data);
 
     /* Load Lua libraries */
     // luaL_openlibs(L); // we don't load any for now
 
     /* Load the file containing the script we are going to run */
-    status = luaL_loadfile(L, "./luafighters/lua/hellolua.lua");
+    int status = luaL_loadfile(L, "./luafighters/lua/hellolua.lua");
     if (status) {
         /*
          * If something went wrong, error message is at the top of the stack
@@ -64,7 +93,7 @@ static PyObject* say_hello(PyObject* self, PyObject* args) {
      * of the stack, so that after it has been called, the table is at the
      * top of the stack.
      */
-    for(i = 1; i <= 5; i++) {
+    for(int i = 1; i <= 5; i++) {
         lua_pushnumber(L, i);   /* Push the table index */
         lua_pushnumber(L, i*2); /* Push the cell value */
         lua_rawset(L, -3);      /* Stores the pair in the table */
@@ -76,7 +105,7 @@ static PyObject* say_hello(PyObject* self, PyObject* args) {
     printf("C: executing lua code\n");
 
     /* Ask Lua to run our little script */
-    result = lua_pcall(L, 0, LUA_MULTRET, 0);
+    int result = lua_pcall(L, 0, LUA_MULTRET, 0);
     if(result) {
         /*
          * If something went wrong, error message is at the top of the stack
