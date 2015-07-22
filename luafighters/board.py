@@ -129,9 +129,8 @@ class Board(object):
     @classmethod
     def generate_board(cls,
                        players=['white', 'black'],
-                       width=10, height=24,
+                       width=8, height=24,
                        neutralplanets=12):
-        players = ['white', 'black']
         assert 'neutral' not in players
         players.append('neutral')
 
