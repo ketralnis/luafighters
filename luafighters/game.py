@@ -92,14 +92,14 @@ def turns(board):
                 board.normalize_ships(cell)
 
             if planet and planet.owner != 'neutral':
-                # TODO this has a bug where you can't take over production
-                # planets :(
                 produce = planet.size/len(playerswithturns)
                 cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + produce
 
                 if len(cell.ships) > 1:
                     # ships produced on disputed planets annihilate 1:1. this is
-                    # to prevent a bug
+                    # to prevent a bug where it's impossible to take over
+                    # planets that have production
+                    # TODO this is still broken :(
                     cell.ships = {fighter: max(0, ships-produce)
                                   for (fighter, ships)
                                   in cell.ships.items()}
