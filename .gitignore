@@ -1,3 +1,4 @@
 build
 luafighters.egg-info
 *.pyc
+*.swp
