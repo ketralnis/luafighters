@@ -3,10 +3,10 @@ orders = {}
 function capped_random(x, min, max)
     choices = {0}
     if x-1 >= min then
-        choices[#choices+1] = -1
+        table.insert(choices, -1)
     end
     if x+1 <= max then
-       choices[#choices+1] = 1
+       table.insert(choices, 1)
     end
     return choices[math.random(#choices)]
 end
@@ -23,7 +23,7 @@ for y, rows in pairs(board.cells) do
                 order = {source_x=x, source_y=y,
                          shipcount=moveships,
                          dest_x=dest_x+x, dest_y=dest_y+y}
-                orders[#orders+1] = order
+                table.insert(orders, order)
             end
         end
     end
