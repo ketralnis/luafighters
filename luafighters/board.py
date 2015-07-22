@@ -3,14 +3,22 @@ from collections import namedtuple
 
 CellRef = namedtuple('CellRef', 'x y cell')
 
+def simplerepr(self):
+    return "%s(%s)" % (self.__class__.__name__,
+                       ', '.join("%s=%r" % (k,v)
+                                 for (k,v) in sorted(self.__dict__.items())))
 
 class Planet(object):
+    __repr__ = simplerepr
+
     def __init__(self, owner, size):
         self.owner = owner
         self.size = size
 
 
 class Cell(object):
+    __repr__ = simplerepr
+
     def __init__(self):
         self.planet = None
         self.ships = {}
@@ -20,6 +28,8 @@ Order = namedtuple('Order', 'source_x source_y shipcount dest_x dest_y')
 
 
 class Board(object):
+    __repr__ = simplerepr
+
     def __init__(self, players, width, height):
         self.turn = players[0]
         self.players = players
@@ -56,7 +66,7 @@ class Board(object):
     @staticmethod
     def normalize_ships(cell):
         """
-	take a list of Ships and make sure empty ones are removed
+        take a list of Ships and make sure empty ones are removed
         """
         cell.ships = {player: count
                       for (player, count) in cell.ships.items()
@@ -78,7 +88,7 @@ class Board(object):
                    in zip(self.players, 'red cyan white green'.split())}
         coloured = lambda p, s: termcolor.colored(s, colours[p])
 
-        collens = len(' w(100), ' + ','.join('100' for x in self.players)+' ')
+        collens = len(' w(10), ' + ','.join('100' for x in self.players)+' ')
 
         buf = []
 
@@ -132,23 +142,24 @@ class Board(object):
                        width=8, height=24,
                        neutralplanets=12):
         assert 'neutral' not in players
-        players.append('neutral')
 
         board = cls(players, width, height)
 
         assert width*height > len(players)+neutralplanets
 
         for player in players:
-            myplanet = Planet(player, 100)
+            myplanet = Planet(player, 10)
             cell = board.random_empty().cell
             cell.planet = myplanet
             cell.ships[player] = 100
 
         for x in xrange(neutralplanets):
-            neutralplanet = Planet('neutral', random.randint(1, 100))
+            neutralplanet = Planet('neutral', random.randint(1, 9))
             cell = board.random_empty().cell
             cell.planet = neutralplanet
-            cell.ships['neutral'] = random.randint(1, 100)
+            cell.ships['neutral'] = random.randint(1, 99)
+
+        players.append('neutral')
 
         return board
 

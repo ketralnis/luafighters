@@ -29,7 +29,7 @@ def turns(board):
             continue
 
         orders, = orders
-        
+
         valid_orders = []
 
         # apply those orders to the board
@@ -53,21 +53,21 @@ def turns(board):
                 logging.warning("Skipping noop move for %r", player)
                 continue
 
+            source.ships[player] -= order.shipcount
+            board.normalize_ships(source)
+
             valid_orders.append(order)
 
-	# now actually process the move requests. we do this in a
-	# separate loop to keep earlier orders from affecting layer
-	# ones
+        # now actually process the move requests. we do this in a separate loop
+        # to keep earlier orders from affecting later ones or allowing cloning
+        # of ships
         for source_x, source_y, shipcount, dest_x, dest_y in valid_orders:
             # process the movement order
-            source = board.cell_at(source_x, source_y)
             dest = board.cell_at(dest_x, dest_y)
 
-            source.ships[player] -= shipcount
             dest.ships.setdefault(player, 0)
             dest.ships[player] += shipcount
 
-            board.normalize_ships(source)
             board.normalize_ships(dest)
 
         # do all fights
@@ -76,7 +76,9 @@ def turns(board):
             # size in ships every turn
             planet = cell.planet
             if planet and planet.owner != 'neutral':
-                cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + planet.size/10
+                # TODO this has a bug where you can't take over production
+                # planets :(
+                cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + planet.size
 
             # ships fight
             if len(cell.ships) > 1:
@@ -113,8 +115,6 @@ def turns(board):
             logging.info("Terminating with victory: %r", board.planets()[0].owner)
             return
 
-
-
 def main():
     strategies = {
         'white': strategy.RandomStrategy('white'),
@@ -137,7 +137,7 @@ def main():
             print "%s's turn #%d" % (player, turncount)
             print board.to_ascii()
 
-            time.sleep(1)
+            time.sleep(0.04)
 
     except StopIteration:
         winner = board.planets()[0].owner

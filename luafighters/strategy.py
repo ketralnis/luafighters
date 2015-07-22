@@ -2,6 +2,7 @@ import random
 
 from luafighters.board import Order
 
+
 class Strategy(object):
     def __init__(self, player):
         self.player = player
@@ -55,6 +56,9 @@ class LuaStrategy(Strategy):
         self.player = player
         self.code = code
         self.state = None
+
+    def board_to_lua(self, board):
+        pass
 
     def make_turn(self, board):
         pass

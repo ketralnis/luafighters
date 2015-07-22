@@ -153,6 +153,22 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
              * stack and return false
              */
 
+            /*
+             * To put values into the table, we first push the index, then the
+             * value, and then call lua_rawset() with the index of the table in the
+             * stack. Let's see why it's -3: In Lua, the value -1 always refers to
+             * the top of the stack. When you create the table with lua_newtable(),
+             * the table gets pushed into the top of the stack. When you push the
+             * index and then the cell value, the stack looks like:
+             *
+             * <- [stack bottom] -- table, index, value [top]
+             *
+             * So the -1 will refer to the cell value, thus -3 is used to refer to
+             * the table itself. Note that lua_rawset() pops the two last elements
+             * of the stack, so that after it has been called, the table is at the
+             * top of the stack.
+             */
+
             if(!encode_python_to_lua(L, dkey, recursion+1)) {
                 return 0;
             }
@@ -160,25 +176,9 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
                 return 0;
             }
 
+            /* lua will pop off the key and value now, leaving only the table */
             lua_settable(L, -3);
         }
-
-        /*
-         * To put values into the table, we first push the index, then the
-         * value, and then call lua_rawset() with the index of the table in the
-         * stack. Let's see why it's -3: In Lua, the value -1 always refers to
-         * the top of the stack. When you create the table with lua_newtable(),
-         * the table gets pushed into the top of the stack. When you push the
-         * index and then the cell value, the stack looks like:
-         *
-         * <- [stack bottom] -- table, index, value [top]
-         *
-         * So the -1 will refer to the cell value, thus -3 is used to refer to
-         * the table itself. Note that lua_rawset() pops the two last elements
-         * of the stack, so that after it has been called, the table is at the
-         * top of the stack.
-         */
-
 
 
     } else {
@@ -214,7 +214,7 @@ int serialize_python_to_lua(lua_State* L, PyObject* env) {
         }
 
         if(!encode_python_to_lua(L, value, 0)) {
-            /* will have an exception on the stack */
+            /* will have an exception on the python stack */
             return 0;
         }
 
