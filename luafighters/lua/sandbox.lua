@@ -52,15 +52,24 @@ function make_sandbox()
     return sandbox_env
 end
 
-function run_sandbox(globals, sb_func)
-    local sandbox_env = make_sandbox()
+function run_sandbox(env_globals, libraries, sb_func)
+    local sandbox_env = {}
 
-    for k,v in pairs(globals) do
+    for k,v in pairs(make_sandbox()) do
         sandbox_env[k] = v
     end
 
-    local chunk = load(sb_func, "userbuff", "t", sandbox_env)
-    return chunk()
+    for k,v in pairs(env_globals) do
+        sandbox_env[k] = v
+    end
+
+    for library, code in pairs(libraries) do
+        local fn = assert(load(code, "library:"..library, "t", sandbox_env))
+        fn()
+    end
+
+    local user_chunk = assert(load(sb_func, "userbuff", "t", sandbox_env))
+    return user_chunk()
 end
 
-return run_sandbox(env, user_code)
+return run_sandbox(env, libraries, user_code)

@@ -1,18 +1,19 @@
 import random
 
 from luafighters.board import Order
+from luafighters.executor import execute
 
 
 class Strategy(object):
-    def __init__(self, player):
-        self.player = player
+    def __init__(self):
+        pass
 
     def make_turn(self, board):
         raise NotImplemented
 
 
 class NullStrategy(Strategy):
-    def make_turn(self, board):
+    def make_turn(self, player, board):
         return []
 
 
@@ -21,7 +22,7 @@ class RandomStrategy(Strategy):
     Every turn move some ships around at random
     """
 
-    def make_turn(self, board):
+    def make_turn(self, player, board):
         orders = []
 
         for x, y, cell in board.iterate():
@@ -52,13 +53,59 @@ class RandomStrategy(Strategy):
         return random.choice(choices)
 
 class LuaStrategy(Strategy):
-    def __init__(self, player, code):
-        self.player = player
+    def __init__(self, code):
         self.code = code
         self.state = None
 
     def board_to_lua(self, board):
-        pass
+        lboard = {
+            'height': board.height,
+            'width': board.width,
+            'cells': {},
+        }
 
-    def make_turn(self, board):
-        pass
+        lcells = lboard['cells']
+
+        for x, y, cell in board.iterate():
+            # lua is weird
+            x += 1
+            y += 1
+
+            lcells.setdefault(y, {})
+            lcell = lcells[y].setdefault(x, {})
+
+            if cell.planet:
+                lcell['planet'] = {
+                    'owner': cell.planet.owner,
+                    'size': cell.planet.size,
+                }
+
+            for player, ships in cell.ships.items():
+                lcell.setdefault('ships', {})
+                lcell['ships'][player] = ships
+
+        return lboard
+
+    def lua_to_orders(self, lorders):
+        orders = []
+        for lorder in lorders.values():
+            orders.append(Order(
+                int(lorder['source_x'])-1,
+                int(lorder['source_y'])-1,
+                int(lorder['shipcount']),
+                int(lorder['dest_x'])-1,
+                int(lorder['dest_y'])-1))
+        return orders
+
+    def make_turn(self, player, board):
+        lboard = self.board_to_lua(board)
+        env = {
+            'player': player,
+            'board': lboard,
+            'state': self.state,
+        }
+        ret = execute(self.code, **env)
+        orders = self.lua_to_orders(ret[0])
+        if len(ret) >= 2:
+            self.state = ret[1]
+        return orders

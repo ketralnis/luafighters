@@ -6,9 +6,10 @@ from itertools import cycle
 import itertools
 
 from luafighters import strategy
+from luafighters.utils import coroutine
 from luafighters.board import Board, Order
 
-
+@coroutine
 def turns(board):
     playerswithturns = filter(lambda x: x!='neutral', board.players)
     for turncount, player in enumerate(cycle(playerswithturns)):
@@ -23,12 +24,7 @@ def turns(board):
             continue
 
         # tell the caller whose turn it is and they give us a list of orders
-        orders = (yield turncount, player)
-
-        if orders is None:
-            continue
-
-        orders, = orders
+        orders, = (yield turncount, player)
 
         valid_orders = []
 
@@ -75,14 +71,9 @@ def turns(board):
             # planet production. each planet gets 10% of its
             # size in ships every turn
             planet = cell.planet
-            if planet and planet.owner != 'neutral':
-                # TODO this has a bug where you can't take over production
-                # planets :(
-                cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + planet.size
 
             # ships fight
             if len(cell.ships) > 1:
-                orig_ships = sorted(cell.ships.items())
                 # half of all ships fight per turn
                 fighting_ships = [(ships/2, fighter)
                                   for (fighter, ships)
@@ -100,6 +91,21 @@ def turns(board):
                 cell.ships = newships
                 board.normalize_ships(cell)
 
+            if planet and planet.owner != 'neutral':
+                # TODO this has a bug where you can't take over production
+                # planets :(
+                produce = planet.size/len(playerswithturns)
+                cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + produce
+
+                if len(cell.ships) > 1:
+                    # ships produced on disputed planets annihilate 1:1. this is
+                    # to prevent a bug
+                    cell.ships = {fighter: max(0, ships-produce)
+                                  for (fighter, ships)
+                                  in cell.ships.items()}
+
+                board.normalize_ships(cell)
+
             # planet fight: you own a planet if you're the only one with ships on it
             if planet and len(cell.ships) == 1 and planet.owner != cell.ships.keys()[0]:
                 planet.owner = cell.ships.keys()[0]
@@ -112,19 +118,21 @@ def turns(board):
         if all(cd.cell.planet.owner in (player, 'neutral')
                for cd in board.planets()):
             # the game is over, this player has won
-            logging.info("Terminating with victory: %r", board.planets()[0].owner)
+            logging.info("Terminating with victory: %r", board.planets().next().cell.planet.owner)
             return
 
 def main():
-    strategies = {
-        'white': strategy.RandomStrategy('white'),
-        'black': strategy.NullStrategy('black'),
-        'red': strategy.RandomStrategy('red'),
-    }
-    board = Board.generate_board(players = sorted(strategies.keys()))
-    turns_pump = turns(board)
+    from luafighters.utils import datafile
 
-    turns_pump.next() # prime the coroutine
+    strategies = {
+        'white': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
+        'black': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
+        'red':   strategy.LuaStrategy(open(datafile('lua/nullstrategy.lua')).read()),
+    }
+    players = sorted(strategies.keys())
+
+    board = Board.generate_board(players = players)
+    turns_pump = turns(board)
 
     orders = []
 
@@ -132,16 +140,22 @@ def main():
         while True:
             turncount, player = turns_pump.send((orders,))
 
-            orders = strategies[player].make_turn(board)
+            # we should be passing in a deepcopy() of the board, so that callers
+            # can't just directly mess with the board state. However, the
+            # strategies that we're actually calling will be written in Lua who
+            # won't be able to call into us anyway
+            orders = strategies[player].make_turn(player, board)
 
-            print "%s's turn #%d" % (player, turncount)
-            print board.to_ascii()
+            if turncount % 100 == 0:
+                print "%s's turn #%d" % (player, turncount)
+                print board.to_ascii()
 
-            time.sleep(0.04)
+            # time.sleep(0.04)
 
     except StopIteration:
-        winner = board.planets()[0].owner
+        winner = board.planets().next().cell.planet.owner
 
+    print board.to_ascii()
     print '*'*20, winner, 'wins!'
 
 if __name__ == '__main__':

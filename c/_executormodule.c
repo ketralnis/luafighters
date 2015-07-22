@@ -13,8 +13,8 @@
  * the libraries require about 100k to run, but if we don't install tjhem we can
  * get by with about 10k
  */
-const size_t MAX_LUA_ALLOCATION=100*1024;
-const size_t MAX_LUA_EXECUTION=10000;
+const size_t MAX_LUA_ALLOCATION=500*1024;
+const size_t MAX_LUA_EXECUTION=100000;
 const size_t MAX_LUA_DEPTH=10;
 
 struct custom_alloc_data {

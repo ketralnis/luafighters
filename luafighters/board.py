@@ -61,6 +61,9 @@ class Board(object):
                 yield CellRef(x, y, cell)
 
     def cell_at(self, x, y):
+        if x < 0 or y < 0:
+            # prevent negative indices
+            raise IndexError()
         return self.cells[y][x]
 
     @staticmethod
@@ -85,7 +88,7 @@ class Board(object):
         import termcolor
         colours = {player: colour
                    for (player, colour)
-                   in zip(self.players, 'red cyan white green'.split())}
+                   in zip(self.players, 'red cyan green white'.split())}
         coloured = lambda p, s: termcolor.colored(s, colours[p])
 
         collens = len(' w(10), ' + ','.join('100' for x in self.players)+' ')
@@ -128,9 +131,13 @@ class Board(object):
 
         for player in self.players:
             playersum = 0
+            playerplanets = 0
             for _, _, cell in self.iterate():
                 playersum += cell.ships.get(player, 0)
-            buf.append(coloured(player, "%s: %d" % (player, playersum)))
+                if cell.planet and cell.planet.owner == player:
+                    playerplanets += 1
+            buf.append(coloured(player, "%s: %d (%d)"
+                                % (player, playersum, playerplanets)))
             buf.append('\n')
 
         return ''.join(buf)
@@ -139,7 +146,7 @@ class Board(object):
     @classmethod
     def generate_board(cls,
                        players=['white', 'black'],
-                       width=8, height=24,
+                       width=8, height=20,
                        neutralplanets=12):
         assert 'neutral' not in players
 

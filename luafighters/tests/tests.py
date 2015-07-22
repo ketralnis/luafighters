@@ -145,5 +145,23 @@ class TestSafeguards(unittest.TestCase):
         execute(program, foo=0)
 
 
+class TestLuaLibraries(unittest.TestCase):
+    def test_pathfinding(self):
+        program = """
+            return find_path(5, 5, 0, 0)
+        """
+        self.assertEqual(execute(program), (4.0, 4.0))
+
+        program = """
+            return find_path(0, 0, 0, 0)
+        """
+        self.assertEqual(execute(program), (0.0, 0.0))
+
+        program = """
+            return find_path(5, 0, 2, 0)
+        """
+        self.assertEqual(execute(program), (4.0, 0.0))
+
+
 if __name__ == '__main__':
     unittest.main()
