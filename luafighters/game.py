@@ -68,8 +68,6 @@ def turns(board):
 
         # do all fights
         for x, y, cell in board.iterate():
-            # planet production. each planet gets 10% of its
-            # size in ships every turn
             planet = cell.planet
 
             # ships fight
@@ -91,24 +89,14 @@ def turns(board):
                 cell.ships = newships
                 board.normalize_ships(cell)
 
-            if planet and planet.owner != 'neutral':
-                produce = planet.size/len(playerswithturns)
-                cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + produce
-
-                if len(cell.ships) > 1:
-                    # ships produced on disputed planets annihilate 1:1. this is
-                    # to prevent a bug where it's impossible to take over
-                    # planets that have production
-                    # TODO this is still broken :(
-                    cell.ships = {fighter: max(0, ships-produce)
-                                  for (fighter, ships)
-                                  in cell.ships.items()}
-
-                board.normalize_ships(cell)
-
             # planet fight: you own a planet if you're the only one with ships on it
             if planet and len(cell.ships) == 1 and planet.owner != cell.ships.keys()[0]:
                 planet.owner = cell.ships.keys()[0]
+
+            # planets produce ships
+            if planet and planet.owner == player:
+                produce = planet.size
+                cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + produce
 
             # cap shipcounts; should we do this?
             cell.ships = {owner: min(count, 999)
@@ -121,13 +109,17 @@ def turns(board):
             logging.info("Terminating with victory: %r", board.planets().next().cell.planet.owner)
             return
 
+
 def main():
     from luafighters.utils import datafile
 
     strategies = {
+        'red': strategy.LuaStrategy(open(datafile('lua/opportuniststrategy.lua')).read()),
+        'cyan': strategy.LuaStrategy(open(datafile('lua/opportuniststrategy.lua')).read()),
+        'magenta': strategy.LuaStrategy(open(datafile('lua/opportuniststrategy.lua')).read()),
         'white': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
-        'black': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
-        'red':   strategy.LuaStrategy(open(datafile('lua/nullstrategy.lua')).read()),
+        'yellow': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
+        'blue':   strategy.LuaStrategy(open(datafile('lua/nullstrategy.lua')).read()),
     }
     players = sorted(strategies.keys())
 
@@ -146,17 +138,19 @@ def main():
             # won't be able to call into us anyway
             orders = strategies[player].make_turn(player, board)
 
-            if turncount % 100 == 0:
+            if True or turncount % 100 == 0:
                 print "%s's turn #%d" % (player, turncount)
                 print board.to_ascii()
 
             # time.sleep(0.04)
+            time.sleep(0.25)
 
     except StopIteration:
         winner = board.planets().next().cell.planet.owner
 
     print board.to_ascii()
     print '*'*20, winner, 'wins!'
+
 
 if __name__ == '__main__':
     main()

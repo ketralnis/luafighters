@@ -20,9 +20,11 @@ for y, rows in pairs(board.cells) do
             dest_y = capped_random(y, 1, board.height)
 
             if moveships > 0 and not (dest_x ~= 0 and dest_y ~= 0) then
-                order = {source_x=x, source_y=y,
-                         shipcount=moveships,
-                         dest_x=dest_x+x, dest_y=dest_y+y}
+                order = {
+                    source_x=x, source_y=y,
+                    dest_x=x+dest_x, dest_y=y+dest_y,
+                    shipcount=moveships,
+                }
                 table.insert(orders, order)
             end
         end

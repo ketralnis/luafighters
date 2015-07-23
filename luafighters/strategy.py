@@ -106,6 +106,12 @@ class LuaStrategy(Strategy):
         }
         ret = execute(self.code, **env)
         orders = self.lua_to_orders(ret[0])
+
         if len(ret) >= 2:
             self.state = ret[1]
+
+        if len(ret) >= 3:
+            logs = [x[1] for x in sorted(ret[2].items())]
+            # TODO we're not using these
+
         return orders

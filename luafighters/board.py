@@ -86,12 +86,9 @@ class Board(object):
 
     def to_ascii(self):
         import termcolor
-        colours = {player: colour
-                   for (player, colour)
-                   in zip(self.players, 'red cyan green white'.split())}
-        coloured = lambda p, s: termcolor.colored(s, colours[p])
+        coloured = lambda p, s: termcolor.colored(s, p) if p != 'neutral' else s
 
-        collens = len(' w(10), ' + ','.join('100' for x in self.players)+' ')
+        collens = len('w(10), ' + ','.join('99' for x in self.players))
 
         buf = []
 
@@ -132,21 +129,22 @@ class Board(object):
         for player in self.players:
             playersum = 0
             playerplanets = 0
+            playerplanetsize = 0
             for _, _, cell in self.iterate():
                 playersum += cell.ships.get(player, 0)
                 if cell.planet and cell.planet.owner == player:
                     playerplanets += 1
-            buf.append(coloured(player, "%s: %d (%d)"
-                                % (player, playersum, playerplanets)))
+                    playerplanetsize += cell.planet.size
+            buf.append(coloured(player, "%s: %d +%d (%d)"
+                                % (player, playersum, playerplanetsize, playerplanets)))
             buf.append('\n')
-
         return ''.join(buf)
 
 
     @classmethod
     def generate_board(cls,
                        players=['white', 'black'],
-                       width=8, height=20,
+                       width=10, height=28,
                        neutralplanets=12):
         assert 'neutral' not in players
 
