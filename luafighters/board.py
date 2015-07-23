@@ -23,6 +23,16 @@ class Cell(object):
         self.planet = None
         self.ships = {}
 
+    def normalize(self):
+        """
+        take a list of Ships and make sure empty ones are removed
+        """
+        self.ships = {player: count
+                      for (player, count) in self.ships.items()
+                      if count > 0}
+
+
+
 
 Order = namedtuple('Order', 'source_x source_y shipcount dest_x dest_y')
 
@@ -65,15 +75,6 @@ class Board(object):
             # prevent negative indices
             raise IndexError()
         return self.cells[y][x]
-
-    @staticmethod
-    def normalize_ships(cell):
-        """
-        take a list of Ships and make sure empty ones are removed
-        """
-        cell.ships = {player: count
-                      for (player, count) in cell.ships.items()
-                      if count > 0}
 
     def random_empty(self):
         while True:
@@ -144,7 +145,7 @@ class Board(object):
     @classmethod
     def generate_board(cls,
                        players=['white', 'black'],
-                       width=10, height=28,
+                       width=10, height=23,
                        neutralplanets=12):
         assert 'neutral' not in players
 

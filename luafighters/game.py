@@ -50,7 +50,7 @@ def turns(board):
                 continue
 
             source.ships[player] -= order.shipcount
-            board.normalize_ships(source)
+            source.normalize()
 
             valid_orders.append(order)
 
@@ -64,7 +64,7 @@ def turns(board):
             dest.ships.setdefault(player, 0)
             dest.ships[player] += shipcount
 
-            board.normalize_ships(dest)
+            dest.normalize()
 
         # do all fights
         for x, y, cell in board.iterate():
@@ -74,7 +74,7 @@ def turns(board):
             if len(cell.ships) > 1:
                 # half of all ships fight per turn
                 fighting_ships = [(ships/2, fighter)
-                                  for (fighter, ships)
+                                  for fighter, ships
                                   in cell.ships.items()]
                 fighting_ships.sort()
                 largest_army, victor = fighting_ships[-1]
@@ -85,22 +85,40 @@ def turns(board):
                 newships = {fighter: ((ships/2+(largest_army-next_army))
                                       if fighter == victor
                                       else ships/2)
-                            for (fighter, ships) in cell.ships.items()}
+                            for fighter, ships
+                            in cell.ships.items()}
                 cell.ships = newships
-                board.normalize_ships(cell)
+                cell.normalize()
+
+                # as a special case, if someone owns a planet and has fewer than
+                # its production and someone else has more, do a last final
+                # battle to resolve that. This is necessary to prevent an issue
+                # with Xeno's planet being undefeatable
+                if (planet
+                    and cell.ships.get(planet.owner, 0) < planet.size
+                    and any(ships > planet.size
+                            for owner, ships
+                            in cell.ships.items())):
+                    # this may go negative, but normalize will fix it
+                    newships = {owner: ships-planet.size
+                                for owner, ships
+                                in cell.ships.items()}
+                    cell.ships = newships
+                    cell.normalize()
 
             # planet fight: you own a planet if you're the only one with ships on it
             if planet and len(cell.ships) == 1 and planet.owner != cell.ships.keys()[0]:
                 planet.owner = cell.ships.keys()[0]
 
-            # planets produce ships
+            # planets produce ships on the owner's turn
             if planet and planet.owner == player:
                 produce = planet.size
                 cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + produce
 
             # cap shipcounts; should we do this?
             cell.ships = {owner: min(count, 999)
-                          for (owner, count) in cell.ships.items()}
+                          for owner, count
+                          in cell.ships.items()}
 
         # check for victory
         if all(cd.cell.planet.owner in (player, 'neutral')
