@@ -7,7 +7,7 @@ import itertools
 
 from luafighters import strategy
 from luafighters.utils import coroutine
-from luafighters.board import Board, Order
+from luafighters.board import Board
 
 @coroutine
 def turns(board):
@@ -95,8 +95,8 @@ def turns(board):
                 # battle to resolve that. This is necessary to prevent an issue
                 # with Xeno's planet being undefeatable
                 if (planet
-                    and cell.ships.get(planet.owner, 0) < planet.size
-                    and any(ships > planet.size
+                    and cell.ships.get(planet.owner, 0) <= planet.size
+                    and any(ships >= planet.size
                             for owner, ships
                             in cell.ships.items())):
                     # this may go negative, but normalize will fix it
@@ -121,27 +121,43 @@ def turns(board):
                           in cell.ships.items()}
 
         # check for victory
-        if all(cd.cell.planet.owner in (player, 'neutral')
-               for cd in board.planets()):
+        if determine_victor(board):
             # the game is over, this player has won
-            logging.info("Terminating with victory: %r", board.planets().next().cell.planet.owner)
+            logging.info("Terminating with victory: %r", determine_victor(board))
             return
+
+
+def determine_victor(board):
+    non_neutral_owners = [cd.cell.planet.owner
+                          for cd in board.planets()
+                          if cd.cell.planet
+                          and cd.cell.planet.owner != 'neutral']
+    if len(set(non_neutral_owners)) == 1:
+        return non_neutral_owners[0]
+
+
+class Stalemate(Exception):
+    pass
 
 
 def main():
     from luafighters.utils import datafile
 
+    start_time = time.time()
+
     strategies = {
-        'red': strategy.LuaStrategy(open(datafile('lua/opportuniststrategy.lua')).read()),
-        'cyan': strategy.LuaStrategy(open(datafile('lua/opportuniststrategy.lua')).read()),
-        'magenta': strategy.LuaStrategy(open(datafile('lua/opportuniststrategy.lua')).read()),
-        'white': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
-        'yellow': strategy.LuaStrategy(open(datafile('lua/randomstrategy.lua')).read()),
-        'blue':   strategy.LuaStrategy(open(datafile('lua/nullstrategy.lua')).read()),
+        'blue': strategy.LuaStrategy(datafile('lua/statefulopportuniststrategy.lua')),
+        'cyan': strategy.LuaStrategy(datafile('lua/opportuniststrategy.lua')),
+        'magenta': strategy.LuaStrategy(datafile('lua/attackneareststrategy.lua')),
+        'red': strategy.LuaStrategy(datafile('lua/randomstrategy.lua')),
+        'white': strategy.LuaStrategy(datafile('lua/nullstrategy.lua')),
+        # 'yellow': strategy.LuaStrategy(datafile('lua/nullstrategy.lua')),
     }
     players = sorted(strategies.keys())
 
-    board = Board.generate_board(players = players)
+    board = Board.generate_board(players=players,
+                                 height=28, width=11,
+                                 neutralplanets=3*len(players))
     turns_pump = turns(board)
 
     orders = []
@@ -156,18 +172,23 @@ def main():
             # won't be able to call into us anyway
             orders = strategies[player].make_turn(player, board)
 
-            if True or turncount % 100 == 0:
+            if turncount % 100 == 0:
                 print "%s's turn #%d" % (player, turncount)
                 print board.to_ascii()
 
+            if turncount > 100*1000:
+                raise Stalemate
+
+            # time.sleep(0.25)
             # time.sleep(0.04)
-            time.sleep(0.25)
 
     except StopIteration:
-        winner = board.planets().next().cell.planet.owner
+        winner = determine_victor(board)
+    except Stalemate:
+        winner = 'nobody'
 
     print board.to_ascii()
-    print '*'*20, winner, 'wins!'
+    print '*'*20, '%s wins after %d cycles and %.2fs' % (winner, turncount, time.time()-start_time)
 
 
 if __name__ == '__main__':

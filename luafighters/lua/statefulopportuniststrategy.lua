@@ -1,5 +1,7 @@
--- Strategy: find the highest reward per risk planet (size/enemyships) and send
--- everyone there
+-- Strategy: like opportunisticstrategy, find the highest reward per risk planet
+-- (size/enemyships) and send everyone there. But this one remembers the current
+-- selection between runs until it is conquered to prevent us from oscillating
+-- between attacking two enemies
 
 orders = {}
 
@@ -22,20 +24,30 @@ for y, rows in pairs(board.cells) do
     end
 end
 
--- figure out which is the most strategic
-table.sort(enemy_planets,
-           function(p1, p2)
-               return p1.strategery < p2.strategery
-           end)
-
 if #enemy_planets == 0 then
+    -- there's nobody to attack
     return {}
 end
 
-best_planet = enemy_planets[#enemy_planets]
+if state.best_planet then
+    if board.cells[state.best_planet.y][state.best_planet.x].planet.owner == player then
+        -- if we already own the planet we've selected, invalidate it
+        state.best_planet = nil
+    end
+end
 
-log("Selected %d,%d as best option (%f)",
-    best_planet.x, best_planet.y, best_planet.strategery)
+if not state.best_planet then
+    -- figure out which is the most strategic
+    table.sort(enemy_planets,
+               function(p1, p2)
+                   return p1.strategery < p2.strategery
+               end)
+
+    state.best_planet = enemy_planets[#enemy_planets]
+    log("Selected %d,%d as best option (%f)",
+        state.best_planet.x, state.best_planet.y, state.best_planet.strategery)
+end
+
 
 -- now send all of our attack ships to that planet
 
@@ -58,12 +70,12 @@ for y, rows in pairs(board.cells) do
                 send_ships = my_ships
             end
 
-            dest_x, dest_y = find_path(x, y, best_planet.x, best_planet.y)
+            dest_x, dest_y = find_path(x, y, state.best_planet.x, state.best_planet.y)
 
             log("Sending %d of %d ships from %d,%d to %d,%d via %d,%d",
                 send_ships, my_ships,
                 x,y,
-                best_planet.x, best_planet.y,
+                state.best_planet.x, state.best_planet.y,
                 dest_x,dest_y)
 
             if send_ships > 0 and not (dest_x == x and dest_y == y) then
@@ -79,4 +91,4 @@ for y, rows in pairs(board.cells) do
     end
 end
 
-return orders, {}, logs
+return orders, state, logs

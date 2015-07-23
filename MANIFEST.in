@@ -1,1 +1,1 @@
-recursive-include lua *
+recursive-include luafighters/lua *

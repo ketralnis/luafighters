@@ -2,7 +2,7 @@
 
 set -e
 
-del build||true
+rm -rf build
 
 python ./setup.py build
 

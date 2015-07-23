@@ -1,3 +1,4 @@
+state = state or {}
 logs = {}
 
 function find_path(source_x, source_y, dest_x, dest_y)

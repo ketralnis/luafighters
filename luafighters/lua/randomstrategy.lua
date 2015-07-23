@@ -1,3 +1,6 @@
+-- Strategy: total chaos. They can't guess our strategy because even we don't
+-- know what it is
+
 orders = {}
 
 function capped_random(x, min, max)

@@ -9,3 +9,7 @@ Make a LuaExecutor object, and extract globals instead of return values?
 Put lua in its own process?
 
 Handle bad return types and exceptions in Lua
+
+Deal with stalemate
+
+Think about luajit. worth it?

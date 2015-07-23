@@ -1,11 +1,11 @@
 from luafighters.utils import datafile
 from luafighters._executor import execute as _execute
 
-sandboxer = open(datafile('lua/sandbox.lua')).read()
+sandboxer = datafile('lua/sandbox.lua')
 
 libraries = {}
 for library in ['boardlib.lua']:
-    libraries[library] = open(datafile('lua/%s'%library)).read()
+    libraries[library] = datafile('lua/%s'%library)
 
 def execute(program, **env):
     ret = _execute(sandboxer,

@@ -14,7 +14,7 @@
  * get by with about 10k
  */
 const size_t MAX_LUA_ALLOCATION=500*1024;
-const size_t MAX_LUA_EXECUTION=100000;
+const size_t MAX_LUA_EXECUTION=1000000;
 const size_t MAX_LUA_DEPTH=10;
 
 struct custom_alloc_data {
