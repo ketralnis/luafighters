@@ -3,6 +3,44 @@ from collections import namedtuple
 
 CellRef = namedtuple('CellRef', 'x y cell')
 
+
+def _make_name(min_syllables=2, max_syllables=4):
+    consonants = ['b','d','f','g','j','k','l','m','n','p','r','s','t','v',
+                  'z', 'ch', 'sh', 'th']
+    initials = consonants + ['y', 'h', 'w']
+    finals = consonants + ['x']
+    vowels = 'aeiuo'
+
+    letters = []
+
+    for x in xrange(random.randint(min_syllables, max_syllables)):
+        initial = random.choice(initials)
+        while letters and initial == letters[-1]:
+            # avoid duplicate consonants
+            initial = random.choice(initials)
+        letters.append(initial)
+
+        letters.append(random.choice(vowels))
+
+        if random.random() < 0.2:
+            letters.append(random.choice(finals))
+
+    name = ''.join(letters).title()
+
+    return name
+
+
+def make_name():
+    name = _make_name(2, 3)
+
+    if random.random() < 0.07:
+        name = name + " " + _make_name(1, 2)
+    elif random.random() < 0.07:
+        name = _make_name(1, 2) + ' ' + name
+
+    return name
+
+
 def simplerepr(self):
     return "%s(%s)" % (self.__class__.__name__,
                        ', '.join("%s=%r" % (k,v)
@@ -11,7 +49,8 @@ def simplerepr(self):
 class Planet(object):
     __repr__ = simplerepr
 
-    def __init__(self, owner, size):
+    def __init__(self, name, owner, size):
+        self.name = name
         self.owner = owner
         self.size = size
 
@@ -94,16 +133,25 @@ class Board(object):
 
         board = cls(players, width, height)
 
+        names = set([None])
+        def _name():
+            name = None
+            while name in names:
+                name = make_name()
+            names.add(name)
+            return name
+
         assert width*height > len(players)+neutralplanets
 
         for player in players:
-            myplanet = Planet(player, 10)
+            name = None
+            myplanet = Planet(_name(), player, 10)
             cell = board.random_empty().cell
             cell.planet = myplanet
             cell.ships[player] = 100
 
         for x in xrange(neutralplanets):
-            neutralplanet = Planet('neutral', random.randint(1, 9))
+            neutralplanet = Planet(_name(), 'neutral', random.randint(1, 9))
             cell = board.random_empty().cell
             cell.planet = neutralplanet
             cell.ships['neutral'] = random.randint(1, 99)
@@ -111,9 +159,3 @@ class Board(object):
         players.append('neutral')
 
         return board
-
-def main():
-    print Board.generate_board().to_ascii()
-
-if __name__ == '__main__':
-    main()

@@ -149,6 +149,7 @@ def board_to_json(board):
                 jcell['ships'] = cell.ships
             if cell.planet:
                 jcell['planet'] = {
+                    'name': cell.planet.name,
                     'owner': cell.planet.owner,
                     'size': cell.planet.size
                 }
