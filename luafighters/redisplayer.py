@@ -1,5 +1,6 @@
 from threading import Thread
 import time
+import logging
 
 import simplejson as json
 
@@ -58,6 +59,7 @@ def _redis_player(conn, game_id, players, game_state,
         conn.hset(game_id, 'control', json_dumps(game_state))
 
     except Exception as e:
+        logging.exception("Error executing game %r", game_id)
         game_state['error'] = str(e)
         conn.hset(game_id, 'control', json_dumps(game_state))
 
