@@ -2,4 +2,5 @@
 
 . _build.sh
 
-maybe_debug luafighters.game "$@"
+maybe_debug luafighters.asciiplayer "$@"
+# maybe_debug luafighters.redisplayer "$@"

@@ -136,60 +136,26 @@ def determine_victor(board):
         return non_neutral_owners[0]
 
 
-class Stalemate(Exception):
-    pass
+def play_game(players, height, width):
+    player_names = sorted(players.keys())
 
-
-def main():
-    from luafighters.utils import datafile
-
-    start_time = time.time()
-
-    strategies = {
-        'blue': strategy.LuaStrategy(datafile('lua/statefulopportuniststrategy.lua')),
-        'cyan': strategy.LuaStrategy(datafile('lua/opportuniststrategy.lua')),
-        'magenta': strategy.LuaStrategy(datafile('lua/attackneareststrategy.lua')),
-        'red': strategy.LuaStrategy(datafile('lua/randomstrategy.lua')),
-        'white': strategy.LuaStrategy(datafile('lua/nullstrategy.lua')),
-        # 'yellow': strategy.LuaStrategy(datafile('lua/nullstrategy.lua')),
-    }
-    players = sorted(strategies.keys())
-
-    board = Board.generate_board(players=players,
+    board = Board.generate_board(players=player_names,
                                  height=28, width=11,
                                  neutralplanets=3*len(players))
     turns_pump = turns(board)
 
     orders = []
 
-    try:
-        while True:
-            turncount, player = turns_pump.send((orders,))
+    while True:
+        turncount, player = turns_pump.send((orders,))
 
-            # we should be passing in a deepcopy() of the board, so that callers
-            # can't just directly mess with the board state. However, the
-            # strategies that we're actually calling will be written in Lua who
-            # won't be able to call into us anyway
-            orders = strategies[player].make_turn(player, board)
+        # we should be passing in a deepcopy() of the board, so that callers
+        # can't just directly mess with the board state. However, the
+        # strategies that we're actually calling will be written in Lua who
+        # won't be able to call into us anyway
+        orders = players[player].make_turn(player, board)
 
-            if turncount % 100 == 0:
-                print "%s's turn #%d" % (player, turncount)
-                print board.to_ascii()
+        yield player, board
 
-            if turncount > 100*1000:
-                raise Stalemate
-
-            # time.sleep(0.25)
-            # time.sleep(0.04)
-
-    except StopIteration:
-        winner = determine_victor(board)
-    except Stalemate:
-        winner = 'nobody'
-
-    print board.to_ascii()
-    print '*'*20, '%s wins after %d cycles and %.2fs' % (winner, turncount, time.time()-start_time)
-
-
-if __name__ == '__main__':
-    main()
+        if turncount > 100*1000:
+            return

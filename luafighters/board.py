@@ -85,63 +85,6 @@ class Board(object):
             if not self.cell_at(x, y).planet:
                 return CellRef(x, y, cell)
 
-    def to_ascii(self):
-        import termcolor
-        coloured = lambda p, s: termcolor.colored(s, p) if p != 'neutral' else s
-
-        collens = len('w(10), ' + ','.join('99' for x in self.players))
-
-        buf = []
-
-        for rownum, row in enumerate(self.cells):
-            buf.append(str(rownum))
-            buf.append('-'*(collens*self.width+self.width))
-            buf.append('\n')
-
-            for colnum, cell in enumerate(row):
-                if colnum != 0:
-                    buf.append('|')
-
-                spacers = collens
-
-                if cell.planet:
-                    planetstr = '%s(%d)' % (cell.planet.owner[0], cell.planet.size)
-                    spacers -= len(planetstr)
-                    buf.append(coloured(cell.planet.owner, planetstr))
-
-                    buf.append(' ')
-                    spacers -= len(' ')
-
-                if cell.ships:
-                    for ip, player in enumerate(self.players):
-                        if ip != 0:
-                            buf.append(',')
-                            spacers -= len(',')
-                        shipstr = str(cell.ships.get(player, 0))
-                        if cell.ships.get(player, 0):
-                            buf.append(coloured(player, shipstr))
-                        else:
-                            buf.append(shipstr)
-                        spacers -= len(shipstr)
-
-                buf.append(' '*spacers)
-            buf.append('\n')
-
-        for player in self.players:
-            playersum = 0
-            playerplanets = 0
-            playerplanetsize = 0
-            for _, _, cell in self.iterate():
-                playersum += cell.ships.get(player, 0)
-                if cell.planet and cell.planet.owner == player:
-                    playerplanets += 1
-                    playerplanetsize += cell.planet.size
-            buf.append(coloured(player, "%s: %d +%d (%d)"
-                                % (player, playersum, playerplanetsize, playerplanets)))
-            buf.append('\n')
-        return ''.join(buf)
-
-
     @classmethod
     def generate_board(cls,
                        players=['white', 'black'],

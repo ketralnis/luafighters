@@ -12,8 +12,8 @@ export PYTHONPATH=./luafighters/build/lib.macosx-10.4-x86_64-2.7
 
 function maybe_debug {
     if false; then
-        exec lldb $(which python) -- -m "$1"
+        exec lldb $(which python) -- -m "$@"
     else
-        exec python -m "$1"
+        exec python -m "$@"
     fi
 }
