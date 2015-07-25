@@ -2,3 +2,7 @@ build
 luafighters.egg-info
 *.pyc
 *.swp
+dump.rdb
+node_modules
+compiled.js
+compiled.js.map

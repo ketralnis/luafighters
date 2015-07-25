@@ -13,12 +13,6 @@ def redis_player(conn, game_id, players, height=50, width=50):
 
     conn.delete(game_id)
 
-    players = {
-        player: strategy.LuaStrategy(user_code)
-        for player, user_code
-        in players.items()
-    }
-
     game_state = {
         'start_time': time.time(),
         'height': height,
@@ -31,7 +25,8 @@ def redis_player(conn, game_id, players, height=50, width=50):
                                             height, width))
     t.daemon = True
     t.start()
-    return t
+
+    return t  # in case anyone wants to join on it, like the test runner
 
 def _redis_player(conn, game_id, players, game_state,
                   height, width):
@@ -164,6 +159,36 @@ def json_dumps(obj):
     return json.dumps(obj, sort_keys=True)
 
 
+def apply_dumb_diff(d1, diff, _depth=0, dumb_diff_sentinel_value=None):
+    # We are called recursively and dont know how deeply the diff was applied.
+    # We just keep track of depth and if it reaches an insane depth, complain
+    assert _depth < 20
+
+    for key, value in diff.iteritems():
+        # None is a sentinel value to delete the key
+        if value == dumb_diff_sentinel_value:
+            d1.pop(key, None)
+            continue
+
+        if key not in d1:
+            d1[key] = value
+            continue
+
+        both_values_are_dicts = isinstance(
+            (d1[key]), dict) and isinstance(value, dict)
+
+        if both_values_are_dicts:
+            # recurse
+
+            d1[key] = apply_dumb_diff(d1[key], value, _depth=_depth + 1)
+        else:
+            # either aren't dicts. replace value
+            d1[key] = value
+            continue
+
+    return d1
+
+
 def main():
     import redis
     from luafighters.utils import datafile
@@ -171,21 +196,22 @@ def main():
     conn = redis.StrictRedis()
     game_id = 'myid'
 
-    players = {
-        'blue': datafile('lua/opportuniststrategy.lua'),
-        'magenta': datafile('lua/randomstrategy.lua'),
-        'red': datafile('lua/nullstrategy.lua'),
-        'white': datafile('lua/attackneareststrategy.lua'),
-        'yellow': datafile('lua/statefulopportuniststrategy.lua'),
-    }
+    players = strategy.example_players
 
     thread = redis_player(conn, game_id, players)
 
     state, diffs = get_game(conn, game_id, None)
+    board = None
 
     while True:
         for diff in diffs:
-            pass # print diff
+            if board is None:
+                board = diff
+            else:
+                board = apply_dumb_diff(board, diff)
+
+            print board
+            time.sleep(0.25)
 
         if state.get('victor') or state.get('error'):
             break

@@ -20,7 +20,7 @@ setup(
     long_description = "Players write Lua scripts to compete with each other",
     ext_modules = [_executor],
     packages=find_packages(),
-    package_data={'luafighters': ['lua/*.lua']},
+    package_data={'luafighters': ['lua/*.lua', 'static/*', 'mako/*']},
     zip_safe=False,
     include_package_data=True,
     install_requires = [

@@ -1,5 +1,6 @@
 import random
 
+from luafighters.utils import datafile
 from luafighters.board import Order
 from luafighters.executor import execute
 
@@ -115,3 +116,11 @@ class LuaStrategy(Strategy):
             # TODO we're not using these
 
         return orders
+
+example_players = {
+    'blue': LuaStrategy(datafile('lua/opportuniststrategy.lua')),
+    'magenta': LuaStrategy(datafile('lua/randomstrategy.lua')),
+    'red': LuaStrategy(datafile('lua/nullstrategy.lua')),
+    'white': LuaStrategy(datafile('lua/attackneareststrategy.lua')),
+    'yellow': LuaStrategy(datafile('lua/statefulopportuniststrategy.lua')),
+}

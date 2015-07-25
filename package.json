@@ -1,0 +1,20 @@
+{
+  "name": "luafighters",
+  "version": "0.0.1",
+  "dependencies" : {
+    "react": "latest",
+    "immutable": "latest",
+    "fynx": "latest",
+    "lodash": "latest",
+    "jquery": ">= 1.9.1",
+    "bootstrap": "3.3.4"
+  },
+  "devDependencies": {
+    "browserify": "latest",
+    "watchify": "latest",
+    "reactify": "latest",
+    "uglifyify": "latest",
+    "exorcist": "latest",
+    "Base64": "latest"
+  }
+}

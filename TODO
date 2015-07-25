@@ -13,3 +13,5 @@ Handle bad return types and exceptions in Lua
 Deal with stalemate
 
 Think about luajit. worth it?
+
+Limit number of concurrent games

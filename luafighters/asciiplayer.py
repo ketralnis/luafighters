@@ -14,10 +14,12 @@ colours = [
     'yellow',
 ]
 
+
 def coloured_player(player, s):
     if player == 'neutral':
         return s
     return termcolor.colored(s, player)
+
 
 def board_to_ascii(board):
     collens = len('w(10), ' + ','.join('99' for x in board.players))
@@ -72,19 +74,9 @@ def board_to_ascii(board):
         buf.append('\n')
     return ''.join(buf)
 
+
 def main():
-    filenames = sys.argv[1:]
-
-    if len(filenames) > colours:
-        raise Exception("Too many players")
-    elif len(filenames) < 2:
-        raise Exception("Not enough players")
-
-    players_files = dict(zip(colours, filenames))
-
-    players = {player_name: strategy.LuaStrategy(open(filename).read())
-               for player_name, filename
-               in players_files.items()}
+    players = strategy.example_players
 
     start_time = time.time()
 
