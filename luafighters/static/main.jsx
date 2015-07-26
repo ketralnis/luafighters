@@ -210,25 +210,21 @@ CodeComponent = React.createClass({
 GameComponent = React.createClass({
     render: function() {
         return (<div>
-            <table className="game-table" border="1" width="100%">
-                <tbody><tr>
-                    <td width="25%" style={{verticalAlign: 'top', textAlign: 'left'}}>
-                        <div style={{width: "100%"}}>
-                            <CodeComponent player="red"/>
-                        </div>
+            <table className="game-table" border="1" width="100%"><tbody>
+                <tr>
+                    <td width="25%">
+                        <CodeComponent player="red"/>
                     </td>
-                    <td width="50%" style={{verticalAlign: 'center', textAlign: 'center'}}>
-                        <div style={{width: "100%"}}>
-                            <BoardComponent/>
-                        </div>
+                    <td width="75%" rowSpan="2">
+                        <BoardComponent/>
                     </td>
-                    <td width="25%" style={{verticalAlign: 'top', textAlign: 'right'}}>
-                        <div style={{width: "100%"}}>
-                            <CodeComponent player="blue"/>
-                        </div>
+                </tr>
+                <tr>
+                    <td width="25%">
+                        <CodeComponent player="blue"/>
                     </td>
-                </tr></tbody>
-            </table>
+                </tr>
+            </tbody></table>
             <button onClick={lf.actions.startGame}>Go!</button>
         </div>);
     }
