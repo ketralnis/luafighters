@@ -214,7 +214,7 @@ CodeComponent = React.createClass({
 GameComponent = React.createClass({
     render: function() {
         return (<div>
-            <table border="1" width="100%">
+            <table class="game-table" border="1" width="100%">
                 <tbody><tr>
                     <td width="25%" style={{verticalAlign: 'top', textAlign: 'left'}}>
                         <div style={{width: "100%"}}>
@@ -259,7 +259,7 @@ CellComponent = React.createClass({
         }
 
         if(cell.ships) {
-            return (<td style={{fontSize: 5, height: '10px', width: '10px'}}>
+            return (<td style={{fontSize: 5, height: '10px', width: '10px', overflow: 'hidden'}}>
                 {planet_str}
                 {ship_list}
             </td>);
