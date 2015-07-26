@@ -117,10 +117,23 @@ class LuaStrategy(Strategy):
 
         return orders
 
+strategy_files = [
+    'attackneareststrategy',
+    'nullstrategy',
+    'opportuniststrategy',
+    'randomstrategy',
+    'statefulopportuniststrategy',
+]
+
+example_strategies = {
+    x: datafile('lua/'+x+'.lua')
+    for x in strategy_files
+}
+
 example_players = {
-    'blue': LuaStrategy(datafile('lua/opportuniststrategy.lua')),
-    'magenta': LuaStrategy(datafile('lua/randomstrategy.lua')),
-    'red': LuaStrategy(datafile('lua/nullstrategy.lua')),
-    'white': LuaStrategy(datafile('lua/attackneareststrategy.lua')),
-    'yellow': LuaStrategy(datafile('lua/statefulopportuniststrategy.lua')),
+    'blue': example_strategies['opportuniststrategy'],
+    'magenta': example_strategies['randomstrategy'],
+    'red': example_strategies['nullstrategy'],
+    'white': example_strategies['attackneareststrategy'],
+    'yellow': example_strategies['statefulopportuniststrategy'],
 }

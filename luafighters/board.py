@@ -1,3 +1,4 @@
+import math
 import random
 from collections import namedtuple
 
@@ -127,8 +128,7 @@ class Board(object):
     @classmethod
     def generate_board(cls,
                        players=['white', 'black'],
-                       width=10, height=23,
-                       neutralplanets=12):
+                       width=10, height=23):
         assert 'neutral' not in players
 
         board = cls(players, width, height)
@@ -141,7 +141,8 @@ class Board(object):
             names.add(name)
             return name
 
-        assert width*height > len(players)+neutralplanets
+        neutral_planets = int(math.sqrt(width*height)*len(players))
+        assert width*height > len(players)+neutral_planets
 
         for player in players:
             name = None
@@ -150,7 +151,7 @@ class Board(object):
             cell.planet = myplanet
             cell.ships[player] = 100
 
-        for x in xrange(neutralplanets):
+        for x in xrange(neutral_planets):
             neutralplanet = Planet(_name(), 'neutral', random.randint(1, 9))
             cell = board.random_empty().cell
             cell.planet = neutralplanet

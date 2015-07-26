@@ -50,10 +50,12 @@ redisplayer: build_python
 	cd .. && PYTHONPATH=./luafighters/build/lib.macosx-10.4-x86_64-2.7 \
 		python -m luafighters.redisplayer
 
-server: build_python ${INSTALLEDJS}
-	make releasejs
-	cd .. && PYTHONPATH=./luafighters/build/lib.macosx-10.4-x86_64-2.7 exec python -m luafighters.server
+devserver: build_python ${INSTALLEDJS}
+	cd .. && PYTHONPATH=./luafighters/build/lib.macosx-10.4-x86_64-2.7 exec python -m luafighters.server --debug
 
-dev:
-	open http://`hostname`:5000
-	exec make server
+dev: build_python ${INSTALLEDJS}
+	exec ./multiproc.py \
+		-- make devserver \
+		-- make watchjs
+	# open http://`hostname`:5000
+	# exec make server

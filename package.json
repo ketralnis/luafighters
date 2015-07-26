@@ -5,6 +5,7 @@
     "react": "latest",
     "immutable": "latest",
     "fynx": "latest",
+    "fynx-mixins": "latest",
     "lodash": "latest",
     "jquery": ">= 1.9.1",
     "bootstrap": "3.3.4"

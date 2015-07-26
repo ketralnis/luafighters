@@ -140,8 +140,7 @@ def play_game(players, height, width):
     player_names = sorted(players.keys())
 
     board = Board.generate_board(players=player_names,
-                                 height=28, width=11,
-                                 neutralplanets=3*len(players))
+                                 height=height, width=width)
     turns_pump = turns(board)
 
     orders = []

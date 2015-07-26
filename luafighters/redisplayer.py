@@ -10,6 +10,7 @@ from luafighters import game
 def redis_player(conn, game_id, players, height=50, width=50):
     # starting a game forks a thread into the background that actually plays it.
     # We just watch on that redis key to see what the status is
+    logging.info("Starting game %r", game_id)
 
     conn.delete(game_id)
 
@@ -33,12 +34,22 @@ def _redis_player(conn, game_id, players, game_state,
     last_board_json = {}
 
     try:
+        # TODO error may be a quality of the turn, not of the state (e.g. we
+        # played a game up until one of the scripts threw an exception)
+
         for player, board in game.play_game(players, height=height, width=width):
             cells_json = board_to_json(board)
+
+            victor = game.determine_victor(board)
+
             board_json = {
                 'turn': player,
                 'turn_num': game_state['turn_count'],
                 'board': cells_json}
+
+            if victor:
+                board_json['victor'] = victor
+
             diff = dumb_diff(last_board_json, board_json)
 
             with conn.pipeline() as pl:
@@ -47,10 +58,11 @@ def _redis_player(conn, game_id, players, game_state,
                 pl.execute()
 
             game_state['turn_count'] += 1
+            conn.hset(game_id, 'control', json_dumps(game_state))
+
             last_board_json = board_json
 
-        victor = game.determine_victor(board)
-        game_state['victor'] = victor
+        game_state['done'] = True
         conn.hset(game_id, 'control', json_dumps(game_state))
 
     except Exception as e:
@@ -58,6 +70,7 @@ def _redis_player(conn, game_id, players, game_state,
         game_state['error'] = str(e)
         conn.hset(game_id, 'control', json_dumps(game_state))
 
+    logging.info("Finished game %r", game_id)
 
 class Timeout(Exception):
     pass
