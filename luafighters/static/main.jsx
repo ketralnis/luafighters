@@ -67,6 +67,9 @@ lf.actions.startGame.listen(() => {
     });
 });
 
+// TODO: neither updateGame nor gameTick should overwrite the current game if we
+// start another one after they start
+
 lf.actions.updateGame.listen(() => {
     var body = {}
     body.game_id = lf.boardStore().get('game_id');
