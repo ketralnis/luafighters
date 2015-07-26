@@ -23,12 +23,12 @@ lf.codeStore = Fynx.createImmutableStore(Immutable.Map({
 
 lf.boardStore = Fynx.createImmutableStore(Immutable.Map({
     // the defaults before we start a game
-    'height': 25,
-    'width': 12,
+    'height': 10,
+    'width': 10,
     'board': {},
 }))
 
-lf.diffsStore = Fynx.createImmutableStore(Immutable.List())
+lf.diffsStore = Fynx.createImmutableStore(Immutable.List([]))
 
 lf.actions = Fynx.createAsyncActions([
     'startGame',
@@ -61,6 +61,9 @@ lf.actions.startGame.listen(() => {
         store = store.set('turn_count', null); // the last turn we rendered
         store = store.set('fetched_turn_count', null); // how many turns are available
         lf.boardStore(store);
+
+        // empty this out
+        lf.diffsStore(Immutable.List([]));
 
         // start kicking off the game
         lf.actions.updateGame();
@@ -145,11 +148,10 @@ lf.actions.gameTick.listen(() => {
         var diff = lf.diffsStore().get(turn_count+1);
         new_board = deep_extend(board, diff);
 
-        console.log(board)
-        console.log(new_board)
-
         turn_count += 1
     }
+
+    console.log(new_board);
 
     boardStore = boardStore.set('board', new_board);
     boardStore = boardStore.set('turn_count', turn_count);
@@ -158,12 +160,6 @@ lf.actions.gameTick.listen(() => {
 
     setTimeout(lf.actions.gameTick, 0.25*1000);
     return;
-
-    // var cells = lf.boardStore.get('cells');
-    // var applied_diff = deep_extend(cells, lf.diffsStore().get(turn_count+1))
-
-    // cells = deep_extend(cells, )
-
 })
 
 CodeComponent = React.createClass({
@@ -214,7 +210,7 @@ CodeComponent = React.createClass({
 GameComponent = React.createClass({
     render: function() {
         return (<div>
-            <table class="game-table" border="1" width="100%">
+            <table className="game-table" border="1" width="100%">
                 <tbody><tr>
                     <td width="25%" style={{verticalAlign: 'top', textAlign: 'left'}}>
                         <div style={{width: "100%"}}>
@@ -244,35 +240,38 @@ CellComponent = React.createClass({
         var planet_str = '';
 
         if(cell.planet) {
-            planet_str = (<div>
-                {cell.planet.name} ({cell.planet.size}): {cell.planet.owner}
+            planet_str = (<div className="cell-planet">
+                {cell.planet.name}({cell.planet.size}):
+                <span style={{color: cell.planet.owner}}>{cell.planet.owner}</span>
             </div>)
         }
 
         var ship_list = '';
         if(cell.ships) {
-            ship_list = (<ul>
+            ship_list = (<ul className="cell-ships">
                 {_.map(cell.ships, (num, owner) => {
-                    return <li style={{color: owner}}>{owner}: {num}</li>
+                    return <li className="cell-ships-owner" style={{color: owner}}>{owner}: {num}</li>
                 })}
             </ul>)
         }
 
         if(cell.ships) {
-            return (<td style={{fontSize: 5, height: '10px', width: '10px', overflow: 'hidden'}}>
+            return (<td className="cell">
                 {planet_str}
                 {ship_list}
             </td>);
         } else {
-            return <td style={{fontSize: 5, height: '10px', width: '10px'}}/>
+            return <td className="cell">{planet_str}</td>
         }
     }
 });
 
 BoardRow = React.createClass({
     render: function() {
-        return (<tr>
-            {_.map(this.props.cells, (cell) => <CellComponent cell={cell} />)}
+        return (<tr className="board-row">
+            {_.map(this.props.cells, (cell) => {
+                return <CellComponent key={"cell-"+cell.x+","+cell.y} cell={cell} />
+            })}
         </tr>);
     }
 })
@@ -294,10 +293,6 @@ BoardComponent = React.createClass({
             for(var x=0; x<width; x++) {
                 var cell = {};
 
-                // console.log(boardStore)
-                // console.log(boardStore.get('cells'))
-                // console.log(boardStore.get('cells').get(y))
-                // console.log(boardStore.get('cells').get(y).get(x))
                 if(board
                    && board['cells']
                    && board['cells'][y]
@@ -317,21 +312,24 @@ BoardComponent = React.createClass({
 
         var errorText = '';
         if(boardStore.get('error')) {
-            errorText = (<div style={{color: 'red'}}>
+            errorText = (<div style="board-error">
                 {boardStore.get('error')}
             </div>);
         }
 
         var turn_text = '';
+        console.log(board)
         if(board && board.turn) {
-            turn_text = <span style={{color: board.turn}}>{board.turn+"'s turn"}</span>
+            turn_text = <span className="board-turn" style={{color: board.turn}}>
+                {board.turn+"'s turn"} #{board.turn_count}
+            </span>
         }
 
         return (<div>
             <h2>game: {boardStore.get('game_id')}</h2>
             {errorText}
-            <table style={{width: '100%', height: '100%'}}><tbody>
-                {_.map(rows, (row, num)=> <BoardRow cells={row} key={num} />)}
+            <table className="game-board"><tbody>
+                {_.map(rows, (row, num)=> <BoardRow cells={row} key={"cell-row"+num} />)}
             </tbody></table>
             <p>{turn_text}</p>
         </div>);

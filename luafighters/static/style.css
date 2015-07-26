@@ -1,3 +1,43 @@
+textarea {
+    font-family: monospace;
+}
+
 table, th, td {
    border: 1px solid black;
+}
+
+td.cell {
+    font-size: 5;
+    height: 10px;
+    width: 10px;
+    overflow: hidden;
+}
+
+ul.cell-ships {
+
+}
+
+li.cell-ships-owner {
+
+}
+
+div.cell-planet {
+
+}
+
+tr.board-row {
+
+}
+
+div.board-error {
+    color: red;
+}
+
+span.board-turn {
+
+}
+
+table.game-board {
+    width: 100%;
+    /*height: 100%;*/
 }

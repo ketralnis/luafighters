@@ -45,7 +45,8 @@ def _redis_player(conn, game_id, players, game_state,
             board_json = {
                 'turn': player,
                 'turn_num': game_state['turn_count'],
-                'board': cells_json}
+                'board': cells_json
+            }
 
             if victor:
                 board_json['victor'] = victor
@@ -54,11 +55,10 @@ def _redis_player(conn, game_id, players, game_state,
 
             with conn.pipeline() as pl:
                 pl.hset(game_id, str(game_state['turn_count']), json_dumps(diff))
+
+                game_state['turn_count'] += 1
                 pl.hset(game_id, 'control', json_dumps(game_state))
                 pl.execute()
-
-            game_state['turn_count'] += 1
-            conn.hset(game_id, 'control', json_dumps(game_state))
 
             last_board_json = board_json
 

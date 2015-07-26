@@ -10,11 +10,12 @@ def _make_name(min_syllables=2, max_syllables=4):
                   'z', 'ch', 'sh', 'th']
     initials = consonants + ['y', 'h', 'w']
     finals = consonants + ['x']
-    vowels = 'aeiuo'
+    vowels = ['a', 'e', 'i', 'u', 'o'] # , 'ai', 'ia', 'io', 'oi']
 
     letters = []
 
-    for x in xrange(random.randint(min_syllables, max_syllables)):
+    num_syllables = random.randint(min_syllables, max_syllables)
+    for x in xrange(num_syllables):
         initial = random.choice(initials)
         while letters and initial == letters[-1]:
             # avoid duplicate consonants
@@ -23,7 +24,9 @@ def _make_name(min_syllables=2, max_syllables=4):
 
         letters.append(random.choice(vowels))
 
-        if random.random() < 0.2:
+        if x == num_syllables-1 and random.random() < 0.4:
+            letters.append(random.choice(finals))
+        elif random.random() < 0.2:
             letters.append(random.choice(finals))
 
     name = ''.join(letters).title()
