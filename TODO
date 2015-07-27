@@ -9,6 +9,7 @@ Make a LuaExecutor object, and extract globals instead of return values?
 Put lua in its own process?
 
 Handle bad return types and exceptions in Lua
+maybe also wrap user scripts in one that returns the logs and state correctly
 
 Deal with stalemate
 

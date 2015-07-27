@@ -132,8 +132,8 @@ example_strategies = {
 
 example_players = {
     'blue': LuaStrategy(example_strategies['opportuniststrategy']),
+    'cyan': LuaStrategy(example_strategies['attackneareststrategy']),
     'magenta': LuaStrategy(example_strategies['randomstrategy']),
     'red': LuaStrategy(example_strategies['nullstrategy']),
-    'white': LuaStrategy(example_strategies['attackneareststrategy']),
     'yellow': LuaStrategy(example_strategies['statefulopportuniststrategy']),
 }

@@ -51,7 +51,7 @@ redisplayer: build_python
 		python -m luafighters.redisplayer
 
 devserver: build_python ${INSTALLEDJS}
-	cd .. && PYTHONPATH=./luafighters/build/lib.macosx-10.4-x86_64-2.7 exec python -m luafighters.server --debug
+	cd .. && PYTHONPATH=./luafighters/build/lib.macosx-10.4-x86_64-2.7 exec python -m luafighters.server --debug --logging=debug
 
 dev: build_python ${INSTALLEDJS}
 	exec ./multiproc.py \

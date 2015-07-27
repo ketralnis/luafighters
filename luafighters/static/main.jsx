@@ -14,6 +14,7 @@ window.$ = jQuery;
 
 lf = window.lf = {}
 
+// populated in configure() below
 lf.defaultCodeStore = Fynx.createImmutableStore(Immutable.Map({}))
 
 lf.codeStore = Fynx.createImmutableStore(Immutable.Map({
@@ -21,14 +22,27 @@ lf.codeStore = Fynx.createImmutableStore(Immutable.Map({
     'blue': 'error("put some code here!")',
 }));
 
-lf.boardStore = Fynx.createImmutableStore(Immutable.Map({
-    // the defaults before we start a game
-    'height': 10,
-    'width': 10,
-    'board': {},
-}))
+// we request this size from the server, but they may send us back a different
+// one
+var defaultHeight = 10;
+var defaultWidth = 10;
 
-lf.diffsStore = Fynx.createImmutableStore(Immutable.List([]))
+lf.boardStore = Fynx.createImmutableStore(Immutable.Map({
+    // the currently known state of the remote game runner, as of when we last
+    // retrieved it and the according diffs
+    'state': {},
+
+    // the current board as we see it as of the currently displayed turn
+    'board': {},
+
+    // how many turns have been played so far (how many diffs have been applied)
+    'turn_count': 0,
+
+    // the entire list of diffs to represent the full game play from the
+    // beginning of the game to the last-fetched turn_count
+    'diffs': Fynx.createImmutableStore(Immutable.List([])),
+
+}))
 
 lf.actions = Fynx.createAsyncActions([
     'startGame',
@@ -41,8 +55,8 @@ lf.actions.startGame.listen(() => {
     body.players = lf.codeStore().toObject();
 
     // defaults are configured above
-    body.height = lf.boardStore().get('height');
-    body.width = lf.boardStore().get('width');
+    body.height = defaultHeight;
+    body.width = defaultWidth;
 
     $.ajax({
         'url': '/api/start',
@@ -53,30 +67,33 @@ lf.actions.startGame.listen(() => {
     }).then((result) => {
         var store = lf.boardStore();
 
-        store = store.set('game_id', result.game_id);
-        store = store.set('error', null);
-        store = store.set('width', result.width);
-        store = store.set('height', result.height);
-        store = store.set('board', {});
-        store = store.set('turn_count', null); // the last turn we rendered
-        store = store.set('fetched_turn_count', null); // how many turns are available
+        store = store.set('state', result.state);
+        store = store.set('board', {}); // empty this out
+        store = store.set('turn_count', 0); // no turns played so far
+        store = store.set('diffs', Immutable.List([])) // empty this out
         lf.boardStore(store);
 
-        // empty this out
-        lf.diffsStore(Immutable.List([]));
-
         // start kicking off the game
-        lf.actions.updateGame();
+        lf.actions.updateGame(result.state.game_id);
     });
 });
 
-// TODO: neither updateGame nor gameTick should overwrite the current game if we
-// start another one after they start
+function can_proceed(turn_count, out_of) {
+    return out_of>0 && turn_count < out_of;
+}
 
-lf.actions.updateGame.listen(() => {
+lf.actions.updateGame.listen((game_id) => {
+    if(game_id != lf.boardStore().get('state').game_id) {
+        // we're being asked to update a game that doesn't exist anymore
+        console.log("Bailing old game_id ("+game_id+"/"+lf.boardStore().get('state').game_id+")")
+        return
+    }
+
     var body = {}
-    body.game_id = lf.boardStore().get('game_id');
-    body.last_offset = lf.boardStore().get('fetched_turn_count');
+    body.game_id = lf.boardStore().get('state').game_id;
+    body.last_offset = lf.boardStore().get('state').turn_count || null;
+
+    console.log("Fetching new turns from "+ body.last_offset)
 
     $.ajax({
         'url': '/api/status',
@@ -85,82 +102,81 @@ lf.actions.updateGame.listen(() => {
         'data': JSON.stringify(body),
         'dataType': 'json',
     }).then((result) => {
-        var boardStore = lf.boardStore();
-        var previous_turn_count = boardStore.get('turn_count')
-        var previous_fetched_turn_count = boardStore.get('fetched_turn_count')
-        var state = result.state;
-        var diffs = result.diffs;
-
-        // add these diffs into the list
-        var diffsStore = lf.diffsStore()
-        diffsStore = diffsStore.concat(diffs)
-        lf.diffsStore(diffsStore);
-
-        if(state.error) {
-            boardStore = boardStore.set('error', state.error)
+        if(game_id != lf.boardStore().get('state').game_id) {
+            // we're being asked to update a game that doesn't exist anymore
+            console.log("Bailing old game_id ("+game_id+"/"+lf.boardStore().get('state').game_id+")")
             return
         }
 
-        console.log("Downloaded turns "+previous_fetched_turn_count+".."+state.turn_count)
-        boardStore = boardStore.set('fetched_turn_count', state.turn_count);
+        var boardStore = lf.boardStore();
 
-        lf.boardStore(boardStore);
+        var new_state = result.state;
+        boardStore = boardStore.set('state', new_state);
 
-        if(!(state.done || state.error)) {
+        var received_diffs = result.diffs;
+        var old_diffs = boardStore.get('diffs')
+        var new_diffs = old_diffs.concat(received_diffs)
+        boardStore = boardStore.set('diffs', new_diffs);
+
+        // console.log("Downloaded turns "+previous_turn_count+".."+state.turn_count+"("+new_diffs.size+")")
+
+        lf.boardStore(boardStore)
+
+        if(!(new_state.done || new_state.error)) {
             // if we're not done, do it again until we have all of the diffs
-            lf.actions.updateGame();
+            lf.actions.updateGame(game_id);
         }
 
-        if(!previous_turn_count || previous_turn_count>=previous_fetched_turn_count) {
-            // we need to start processing game ticks if (1) we haven't
-            // processed any before or (2) the old ticker game up because it ran
-            // out of turns to process
-            lf.actions.gameTick();
+        if(!can_proceed(boardStore.get('turn_count'), old_diffs.size)
+            && can_proceed(boardStore.get('turn_count'), new_diffs.size)) {
+            // we couldn't proceed before, but we can now
+            lf.actions.gameTick(game_id);
         }
     });
 });
 
-lf.actions.gameTick.listen(() => {
+lf.actions.gameTick.listen((game_id) => {
+    if(game_id != lf.boardStore().get('state').game_id) {
+        // we're being asked to update a game that doesn't exist anymore
+        console.log("Bailing old game_id ("+game_id+"/"+lf.boardStore().get('state').game_id+")")
+        return
+    }
+
     var boardStore = lf.boardStore();
 
     // how many turns we've downloaded
-    var fetched_turn_count = boardStore.get('fetched_turn_count');
+    var fetched_turn_count = boardStore.get('diffs').size
 
     // how many turns we've played
     var turn_count = boardStore.get('turn_count');
 
-    console.log("Executing turn #" + turn_count + " of "+ fetched_turn_count
-                +"("+lf.diffsStore().size+")");
 
-    if(!fetched_turn_count || turn_count == fetched_turn_count) {
-        // there's no more game available to play
-        console.log("Stopping ticks at "+turn_count+"/"+fetched_turn_count)
-        return
-    }
+    console.log("Executing turn #" + turn_count + " of "+ fetched_turn_count);
 
     var new_board;
 
-    if(turn_count == null) {
-        new_board = lf.diffsStore().get(0);
-        turn_count = 0;
+    if(turn_count == 0) {
+        new_board = boardStore.get('diffs').get(0);
     } else {
         var board = boardStore.get('board');
-        var diff = lf.diffsStore().get(turn_count+1);
+        var diff = boardStore.get('diffs').get(turn_count);
         new_board = deep_extend(board, diff);
-
-        turn_count += 1
     }
-
-    console.log(new_board);
+    var new_turn_count = turn_count+1;
 
     boardStore = boardStore.set('board', new_board);
-    boardStore = boardStore.set('turn_count', turn_count);
+    boardStore = boardStore.set('turn_count', new_turn_count);
 
     lf.boardStore(boardStore);
 
-    setTimeout(lf.actions.gameTick, 0.25*1000);
-    return;
-})
+    if(can_proceed(new_turn_count, boardStore.get('diffs').size)) {
+        setTimeout(() => lf.actions.gameTick(game_id), 0.25*1000);
+    } else {
+        // there's no more game available to play
+        console.log("Stopping ticks at "+turn_count+"/"+fetched_turn_count);
+        return;
+    }
+});
 
 CodeComponent = React.createClass({
     mixins: [
@@ -176,8 +192,7 @@ CodeComponent = React.createClass({
                 Player: <span style={{color: this.props.player}}>{this.props.player}</span>
             </h2>
 
-            <textarea rows="30" style={{width: '100%'}}
-             onChange={this.onChangeCode}
+            <textarea onChange={this.onChangeCode}
              value={lf.codeStore().get(this.props.player)} />
 
             Examples: <select onChange={this.onChangeToExample}>
@@ -210,17 +225,17 @@ CodeComponent = React.createClass({
 GameComponent = React.createClass({
     render: function() {
         return (<div>
-            <table className="game-table" border="1" width="100%"><tbody>
+            <table className="game-table"><tbody>
                 <tr>
-                    <td width="25%">
+                    <td className="game-table-code">
                         <CodeComponent player="red"/>
                     </td>
-                    <td width="75%" rowSpan="2">
+                    <td className="game-table-board" rowSpan="2">
                         <BoardComponent/>
                     </td>
                 </tr>
                 <tr>
-                    <td width="25%">
+                    <td>
                         <CodeComponent player="blue"/>
                     </td>
                 </tr>
@@ -251,14 +266,10 @@ CellComponent = React.createClass({
             </ul>)
         }
 
-        if(cell.ships) {
-            return (<td className="cell">
-                {planet_str}
-                {ship_list}
-            </td>);
-        } else {
-            return <td className="cell">{planet_str}</td>
-        }
+        return (<td className="cell">
+            {planet_str}
+            {ship_list}
+        </td>);
     }
 });
 
@@ -277,9 +288,10 @@ BoardComponent = React.createClass({
 
     render: function() {
         var boardStore = this.state.boardStore;
-        var board = boardStore.get('board').board
-        var height = boardStore.get('height');
-        var width = boardStore.get('width');
+        var state = boardStore.get('state')
+        var board = boardStore.get('board');
+        var height = state && state.height || defaultHeight
+        var width = state && state.width || defaultWidth
         var rows = [];
 
         // turn our sparse dictionary into a list of lists
@@ -306,19 +318,23 @@ BoardComponent = React.createClass({
             rows.push(row)
         }
 
+        // TODO
         var errorText = '';
-        if(boardStore.get('error')) {
-            errorText = (<div style="board-error">
-                {boardStore.get('error')}
+        if(state && state.error) {
+            errorText = (<div class="board-error">
+                {state.error}
             </div>);
         }
 
         var turn_text = '';
-        console.log(board)
-        if(board && board.turn) {
-            turn_text = <span className="board-turn" style={{color: board.turn}}>
-                {board.turn+"'s turn"} #{board.turn_count}
-            </span>
+        if(board && board.victor) {
+            turn_text = (<span className="board-victor" style={{color: board.victor}}>
+                {board.victor} wins after {board.turn_num} turns
+            </span>)
+        } else if(board && board.turn) {
+            turn_text = (<span className="board-turn" style={{color: board.turn}}>
+                {board.turn+"'s turn"} #{board.turn_num}
+            </span>)
         }
 
         return (<div>

@@ -59,16 +59,13 @@ def start_game():
         for k,v in players.items())
 
     players = {k.encode('utf8'): strategy.LuaStrategy(v.encode('utf8'))
-               for (k,v) in players.items()}
+               for k,v in players.items()}
 
     game_id = utils.uuid4_62()
 
-    thread = redisplayer.redis_player(conn, game_id, players,
-                                      height, width)
-
-    return jsonify(game_id=game_id,
-                   height=height,
-                   width=width)
+    state = redisplayer.redis_player(conn, game_id, players,
+                                     height, width)
+    return jsonify(state=state)
 
 
 @app.route('/api/status', methods=['POST'])

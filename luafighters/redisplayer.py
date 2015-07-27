@@ -5,16 +5,21 @@ import logging
 import simplejson as json
 
 from luafighters import strategy
+from luafighters.board import Board
 from luafighters import game
 
-def redis_player(conn, game_id, players, height=50, width=50):
+def redis_player(conn, game_id, strategies, height=25, width=25):
     # starting a game forks a thread into the background that actually plays it.
     # We just watch on that redis key to see what the status is
     logging.info("Starting game %r", game_id)
 
     conn.delete(game_id)
 
+    initial_board = Board.generate_board(strategies.keys(),
+                                         height=height,
+                                         width=width)
     game_state = {
+        'game_id': game_id,
         'start_time': time.time(),
         'height': height,
         'width': width,
@@ -22,30 +27,32 @@ def redis_player(conn, game_id, players, height=50, width=50):
     }
     conn.hset(game_id, 'control', json_dumps(game_state))
 
-    t = Thread(target=lambda: _redis_player(conn, game_id, players, game_state,
-                                            height, width))
+    t = Thread(target=lambda: _redis_player(conn, game_id, initial_board,
+                                            strategies, dict(game_state)))
     t.daemon = True
     t.start()
 
-    return t  # in case anyone wants to join on it, like the test runner
+    # we passed_redis_player his own copy of this, so we know he can't have
+    # messed with it and it's safe to just return
+    return game_state
 
-def _redis_player(conn, game_id, players, game_state,
-                  height, width):
+
+def _redis_player(conn, game_id, initial_board, strategies, game_state):
     last_board_json = {}
 
     try:
         # TODO error may be a quality of the turn, not of the state (e.g. we
         # played a game up until one of the scripts threw an exception)
 
-        for player, board in game.play_game(players, height=height, width=width):
-            cells_json = board_to_json(board)
+        for player, board in game.play_game(initial_board, strategies):
+            cells_json = cells_to_json(board)
 
             victor = game.determine_victor(board)
 
             board_json = {
                 'turn': player,
                 'turn_num': game_state['turn_count'],
-                'board': cells_json
+                'cells': cells_json,
             }
 
             if victor:
@@ -56,12 +63,19 @@ def _redis_player(conn, game_id, players, game_state,
             with conn.pipeline() as pl:
                 pl.hset(game_id, str(game_state['turn_count']), json_dumps(diff))
 
+                # logging.debug("Saving turn #%d and count of %d",
+                #               game_state['turn_count'], game_state['turn_count']+1)
+
                 game_state['turn_count'] += 1
                 pl.hset(game_id, 'control', json_dumps(game_state))
                 pl.execute()
 
             last_board_json = board_json
 
+        # the frontend actually reads out of the victor from the board, not the
+        # state. but this shortcut might make it easier to automate repeated
+        # battles
+        game_state['victor'] = game.determine_victor(board)
         game_state['done'] = True
         conn.hset(game_id, 'control', json_dumps(game_state))
 
@@ -83,12 +97,18 @@ def get_game(conn, game_id, last_offset):
     age = time.time() - state['start_time']
 
     if age > 60:
+        # TODO the frontend doesn't handle this
         raise Timeout("Game is too old (%.2fs)" % (age,))
 
-    if last_offset is None:
+    if last_offset is None and state['turn_count'] == 0:
+        get_chunks = []
+    elif last_offset is None and state['turn_count'] != 0:
         get_chunks = range(state['turn_count'])
     else:
         get_chunks = range(last_offset, state['turn_count'])
+
+    logging.debug('Game %r requested from last_offset %r of %r (%r)',
+                  game_id, last_offset, state['turn_count'], get_chunks)
 
     if get_chunks:
         with conn.pipeline() as pl:
@@ -100,6 +120,10 @@ def get_game(conn, game_id, last_offset):
         chunks = []
 
     chunks = map(json.loads, chunks)
+
+    missing = [i for (i, x) in zip(get_chunks, chunks) if not x]
+    if missing:
+        logging.warning('Missing chunks %r', missing)
 
     return state, chunks
 
@@ -147,8 +171,8 @@ def dumb_diff(dict1, dict2, depth=10, dont_diff=None,
     return diff
 
 
-def board_to_json(board):
-    js = {'cells': {}}
+def cells_to_json(board):
+    cells = {}
     for y, row in enumerate(board.cells):
         jrow = {}
         for x, cell in enumerate(row):
@@ -164,8 +188,8 @@ def board_to_json(board):
             if jcell:
                 jrow[x] = jcell
         if jrow:
-            js['cells'][y] = jrow
-    return js
+            cells[y] = jrow
+    return cells
 
 
 def json_dumps(obj):
@@ -204,29 +228,25 @@ def apply_dumb_diff(d1, diff, _depth=0, dumb_diff_sentinel_value=None):
 
 def main():
     import redis
-    from luafighters.utils import datafile
 
     conn = redis.StrictRedis()
     game_id = 'myid'
 
     players = strategy.example_players
 
-    thread = redis_player(conn, game_id, players)
+    initial_state = redis_player(conn, game_id, players)
+    del initial_state # we don't use this
 
     state, diffs = get_game(conn, game_id, None)
-    board = None
+    board = {}
 
     while True:
         for diff in diffs:
-            if board is None:
-                board = diff
-            else:
-                board = apply_dumb_diff(board, diff)
+            board = apply_dumb_diff(board, diff)
 
-            print board
-            time.sleep(0.25)
+            print json_dumps(board)
 
-        if state.get('victor') or state.get('error'):
+        if state.get('done'):
             break
 
         if not diffs:
@@ -235,12 +255,10 @@ def main():
 
         state, diffs = get_game(conn, game_id, state['turn_count'])
 
-    if state.get('victor'):
-        print state['victor'], 'wins!'
-    elif state.get('error'):
-        print 'error:', state['error']
-
-    thread.join()
+        if board.get('victor'):
+            print board['victor'], 'wins!'
+        elif state.get('error'):
+            print 'error:', state['error']
 
 if __name__ == "__main__":
     main()

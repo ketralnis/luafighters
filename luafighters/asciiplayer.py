@@ -4,6 +4,7 @@ import time
 
 from luafighters import strategy
 from luafighters import game
+from luafighters.board import Board
 
 colours = [
     'blue',
@@ -76,11 +77,13 @@ def board_to_ascii(board):
 
 
 def main():
-    players = strategy.example_players
+    strategies = strategy.example_players
 
     start_time = time.time()
 
-    for turncount, (player, board) in enumerate(game.play_game(players, height=28, width=11)):
+    initial_board = Board.generate_board(strategies.keys())
+
+    for turncount, (player, board) in enumerate(game.play_game(initial_board, strategies)):
         print "%s's turn #%d" % (player, turncount)
         print board_to_ascii(board)
 

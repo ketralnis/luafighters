@@ -6,13 +6,13 @@ from itertools import cycle
 import itertools
 
 from luafighters import strategy
-from luafighters.utils import coroutine
-from luafighters.board import Board
 
-@coroutine
-def turns(board):
-    playerswithturns = filter(lambda x: x!='neutral', board.players)
-    for turncount, player in enumerate(cycle(playerswithturns)):
+
+def play_game(board, strategies):
+    players = sorted(filter(lambda x: x!='neutral', board.players))
+    assert players == sorted(strategies.keys())
+
+    for turncount, player in enumerate(cycle(players)):
         if player == 'neutral':
             # the neutral player doesn't go
             logging.debug("Skipping neutral turn")
@@ -23,8 +23,7 @@ def turns(board):
             logging.info("Skipping %r", player)
             continue
 
-        # tell the caller whose turn it is and they give us a list of orders
-        orders, = (yield turncount, player)
+        orders = strategies[player].make_turn(player, board)
 
         valid_orders = []
 
@@ -115,46 +114,43 @@ def turns(board):
                 produce = planet.size
                 cell.ships[planet.owner] = cell.ships.get(planet.owner, 0) + produce
 
-            # cap shipcounts; should we do this?
+            # cap shipcounts; TODO should we do this?
             cell.ships = {owner: min(count, 999)
                           for owner, count
                           in cell.ships.items()}
+
+        yield player, board
 
         # check for victory
         if determine_victor(board):
             # the game is over, this player has won
             logging.info("Terminating with victory: %r", determine_victor(board))
             return
+        elif turncount > 100*1000:
+            logging.info("Terminating after too many turns", turncount)
+            return
 
 
 def determine_victor(board):
-    non_neutral_owners = [cd.cell.planet.owner
-                          for cd in board.planets()
-                          if cd.cell.planet
-                          and cd.cell.planet.owner != 'neutral']
-    if len(set(non_neutral_owners)) == 1:
-        return non_neutral_owners[0]
+    alive_owners = set()
 
+    for cd in board.planets():
+        cell = cd.cell
+        planet = cell.planet
 
-def play_game(players, height, width):
-    player_names = sorted(players.keys())
+        if planet.owner == 'neutral':
+            continue
 
-    board = Board.generate_board(players=player_names,
-                                 height=height, width=width)
-    turns_pump = turns(board)
+        if len(cell.ships) > 1:
+            # disputed planets prevent victory
+            return None
 
-    orders = []
+        alive_owners.add(planet.owner)
 
-    while True:
-        turncount, player = turns_pump.send((orders,))
+        if len(alive_owners) > 1:
+            # more than one living owner prevents victory
+            return None
 
-        # we should be passing in a deepcopy() of the board, so that callers
-        # can't just directly mess with the board state. However, the
-        # strategies that we're actually calling will be written in Lua who
-        # won't be able to call into us anyway
-        orders = players[player].make_turn(player, board)
-
-        yield player, board
-
-        if turncount > 100*1000:
-            return
+    # otherwise we're the only one alive!
+    assert len(alive_owners) == 1
+    return list(alive_owners)[0]

@@ -24,8 +24,9 @@ def _make_name(min_syllables=2, max_syllables=4):
 
         letters.append(random.choice(vowels))
 
-        if x == num_syllables-1 and random.random() < 0.4:
-            letters.append(random.choice(finals))
+        if x == num_syllables-1:
+            if random.random() < 0.4:
+                letters.append(random.choice(finals))
         elif random.random() < 0.2:
             letters.append(random.choice(finals))
 
@@ -68,13 +69,12 @@ class Cell(object):
 
     def normalize(self):
         """
-        take a list of Ships and make sure empty ones are removed
+        remove empty/negative ships
         """
         self.ships = {player: count
-                      for (player, count) in self.ships.items()
+                      for player, count
+                      in self.ships.items()
                       if count > 0}
-
-
 
 
 Order = namedtuple('Order', 'source_x source_y shipcount dest_x dest_y')
