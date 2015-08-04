@@ -5,4 +5,4 @@ How to install:
 * install npm
 * install virtualenv
 * edit setup.py library_dirs and include_dirs to point to your Lua (go ahead and commit this if you have to do it)
-* run make devserver
+* run make dev

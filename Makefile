@@ -37,6 +37,8 @@ test tests: ${INSTALLEDENV}
 	.env/bin/python -m luafighters.tests.tests
 
 clean:
+	rm -f luafighters/static/compiled.js
+	rm -f luafighters/static/compiled.js.map
 	find . -type f -name \*.pyc -delete -print
 
 distclean: clean
@@ -54,7 +56,7 @@ redisplayer: ${INSTALLEDENV}
 devserver: ${INSTALLEDENV} ${INSTALLEDJS}
 	.env/bin/python -m luafighters.server --debug --logging=debug
 
-dev: {INSTALLEDENV} ${INSTALLEDJS}
+dev: ${INSTALLEDENV} ${INSTALLEDJS}
 	exec ./multiproc.py \
 		-- make devserver \
 		-- make watchjs
