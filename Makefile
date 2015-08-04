@@ -9,11 +9,17 @@ installjs: ${INSTALLEDJS}
 
 installenv: ${INSTALLEDENV}
 
-${INSTALLEDENV}: setup.py
+check_dependencies:
+	which redis-server
+	which lua
+	which npm
+	which virtualenv
+
+${INSTALLEDENV}: check_dependencies setup.py
 	rm -fr .env
 	virtualenv .env
-	touch .env/installed
 	.env/bin/python ./setup.py develop
+	touch .env/installed
 
 ${INSTALLEDJS}: package.json
 	# uses package.json to get everything
@@ -42,6 +48,7 @@ clean:
 	find luafighters -type f -name \*.pyc -delete -print
 
 distclean: clean
+	rm -rf build # only to deal with old style installs
 	rm -fr .env
 	rm -fr node_modules
 	rm -fr cover
@@ -57,7 +64,7 @@ devserver: ${INSTALLEDENV}
 	.env/bin/python -m luafighters.server --debug --logging=debug
 
 dev: ${INSTALLEDENV} ${INSTALLEDJS}
-	exec ./multiproc.py \
+	./multiproc.py \
 		-- make devserver \
 		-- make watchjs
 	# open http://`hostname`:5000
