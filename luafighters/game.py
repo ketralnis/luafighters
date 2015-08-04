@@ -1,11 +1,7 @@
 #!/usr/bin/env python2.7
 
 import logging
-import time
 from itertools import cycle
-import itertools
-
-from luafighters import strategy
 
 
 def play_game(board, strategies):

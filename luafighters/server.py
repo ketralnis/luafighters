@@ -2,7 +2,6 @@ import argparse
 import time
 import logging
 
-import simplejson as json
 from flask import Flask, request
 from flask import url_for
 from flask.json import jsonify

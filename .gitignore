@@ -7,3 +7,4 @@ node_modules
 compiled.js
 compiled.js.map
 luafighters/_executor.so
+.env

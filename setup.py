@@ -8,7 +8,9 @@ _executor = Extension('luafighters._executor',
                    libraries = ['lua', 'm'],
                    library_dirs = ['/opt/local/lib'],
                    include_dirs = ['/opt/local/include', '/usr/include/lua5.2', './c'],
-                   sources = ['c/_executormodule.c'])
+                   sources = ['c/_executormodule.c'],
+                   extra_compile_args=['-std=c99'],
+                   )
 
 setup(
     name = 'luafighters',

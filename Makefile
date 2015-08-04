@@ -39,13 +39,13 @@ test tests: ${INSTALLEDENV}
 clean:
 	rm -f luafighters/static/compiled.js
 	rm -f luafighters/static/compiled.js.map
-	find . -type f -name \*.pyc -delete -print
+	find luafighters -type f -name \*.pyc -delete -print
 
 distclean: clean
 	rm -fr .env
 	rm -fr node_modules
 	rm -fr cover
-	find . -type f -name \*.pyc -delete -print
+	rm -fr luafighters.egg-info
 
 asciiplayer: ${INSTALLEDENV}
 	.env/bin/python -m luafighters.asciiplayer
@@ -53,7 +53,7 @@ asciiplayer: ${INSTALLEDENV}
 redisplayer: ${INSTALLEDENV}
 	.env/bin/python -m luafighters.redisplayer
 
-devserver: ${INSTALLEDENV} ${INSTALLEDJS}
+devserver: ${INSTALLEDENV}
 	.env/bin/python -m luafighters.server --debug --logging=debug
 
 dev: ${INSTALLEDENV} ${INSTALLEDJS}
