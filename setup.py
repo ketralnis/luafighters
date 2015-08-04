@@ -7,7 +7,7 @@ _executor = Extension('luafighters._executor',
                                     ('MINOR_VERSION', '0')],
                    libraries = ['lua', 'm'],
                    library_dirs = ['/opt/local/lib'],
-                   include_dirs = ['/opt/local/include', './c'],
+                   include_dirs = ['/opt/local/include', '/usr/include/lua5.2', './c'],
                    sources = ['c/_executormodule.c'])
 
 setup(
@@ -24,6 +24,8 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires = [
+        'flask',
+        'mako',
         'simplejson',
         'redis',
     ],

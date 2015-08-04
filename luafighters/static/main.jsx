@@ -24,8 +24,8 @@ lf.codeStore = Fynx.createImmutableStore(Immutable.Map({
 
 // we request this size from the server, but they may send us back a different
 // one
-var defaultHeight = 10;
-var defaultWidth = 10;
+var defaultHeight = 12;
+var defaultWidth = 12;
 
 lf.boardStore = Fynx.createImmutableStore(Immutable.Map({
     // the currently known state of the remote game runner, as of when we last
@@ -187,7 +187,7 @@ CodeComponent = React.createClass({
     render: function() {
         var exampleStrategies = lf.defaultCodeStore();
 
-        return (<div>
+        return (<div className="code-component">
             <h2>
                 Player: <span style={{color: this.props.player}}>{this.props.player}</span>
             </h2>
@@ -225,21 +225,13 @@ CodeComponent = React.createClass({
 GameComponent = React.createClass({
     render: function() {
         return (<div>
-            <table className="game-table"><tbody>
-                <tr>
-                    <td className="game-table-code">
-                        <CodeComponent player="red"/>
-                    </td>
-                    <td className="game-table-board" rowSpan="2">
-                        <BoardComponent/>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <CodeComponent player="blue"/>
-                    </td>
-                </tr>
-            </tbody></table>
+            <div className="layout-container">
+                <div className="layout-codes">
+                    <CodeComponent player="red"/>
+                    <CodeComponent player="blue"/>
+                </div>
+                <BoardComponent/>
+            </div>
             <button onClick={lf.actions.startGame}>Go!</button>
         </div>);
     }
@@ -266,7 +258,9 @@ CellComponent = React.createClass({
             </ul>)
         }
 
-        return (<td className="cell">
+        return (<td className="cell"
+                 style={{width: this.props.cellWidth,
+                         height:this.props.cellHeight}}>
             {planet_str}
             {ship_list}
         </td>);
@@ -277,7 +271,11 @@ BoardRow = React.createClass({
     render: function() {
         return (<tr className="board-row">
             {_.map(this.props.cells, (cell) => {
-                return <CellComponent key={"cell-"+cell.x+","+cell.y} cell={cell} />
+                return <CellComponent
+                        key={"cell-"+cell.x+","+cell.y}
+                        cell={cell}
+                        cellWidth={this.props.cellWidth}
+                        cellHeight={this.props.cellHeight} />
             })}
         </tr>);
     }
@@ -337,11 +335,17 @@ BoardComponent = React.createClass({
             </span>)
         }
 
-        return (<div>
+        return (<div className="game-board-container">
             <h2>game: {boardStore.get('game_id')}</h2>
             {errorText}
             <table className="game-board"><tbody>
-                {_.map(rows, (row, num)=> <BoardRow cells={row} key={"cell-row"+num} />)}
+                {_.map(rows, (row, num)=> {
+                    return <BoardRow
+                            cellWidth={""+Math.floor(100/width)+"%"}
+                            cellHeight={""+Math.floor(100/height)+"%"}
+                            cells={row}
+                            key={"cell-row-"+num} />
+                })}
             </tbody></table>
             <p>{turn_text}</p>
         </div>);
