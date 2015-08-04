@@ -15,11 +15,12 @@ check_dependencies:
 	which npm
 	which virtualenv
 
-${INSTALLEDENV}: check_dependencies setup.py
+${INSTALLEDENV}: setup.py
+	make check_dependencies
 	rm -fr .env
 	virtualenv .env
 	.env/bin/python ./setup.py develop
-	touch .env/installed
+	touch ${INSTALLEDENV}
 
 ${INSTALLEDJS}: package.json
 	# uses package.json to get everything
