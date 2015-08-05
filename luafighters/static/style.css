@@ -67,3 +67,9 @@ table.game-table td.game-table-board {
     height: 100%;
     width: 75%;
 }
+
+#boardCanvas {
+    width: 800px;
+    height: 800px;
+    background-color: black;
+}

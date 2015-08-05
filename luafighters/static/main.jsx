@@ -176,7 +176,70 @@ lf.actions.gameTick.listen((game_id) => {
         console.log("Stopping ticks at "+turn_count+"/"+fetched_turn_count);
         return;
     }
+
+    drawBoardState(new_board)
+
 });
+
+
+drawBoardState = function(board) {
+    console.log("draw stuff on canvas",board);
+    canvas = document.getElementById("boardCanvas");
+    canvas.width = 1600;
+    canvas.height = 1600;
+    canvas.style.width = "800px";
+    canvas.style.height = "800px";
+
+    ctx = canvas.getContext('2d');
+    ctx.fillStyle = "red";
+    ctx.textAlign = 'center';
+    ctx.scale(2,2)
+
+    var cell, i, j, len, len1, row;
+
+    for (i = 0; i < 12; i++) {
+        row = board.cells[i];
+        if (row) {
+            for (j = 0; j < 12; j++) {
+                cell = row[j];
+                if (cell) {
+                    var x, y;
+                    x = i*60+60
+                    y = j*60+60
+                    //ctx.fillRect(x,y,40,40);
+
+                    if (cell.planet) {
+                        if (cell.planet.owner=="neutral"){
+                            ctx.fillStyle = "gray";
+                        } else {
+                            ctx.fillStyle = cell.planet.owner;
+                        }
+
+                        ctx.fillText(cell.planet.name+":"+cell.planet.owner, x, y+30);
+
+                        ctx.beginPath();
+                        ctx.arc(x, y, cell.planet.size, 0, 2*Math.PI);
+                        ctx.fill()
+                    }
+                    if (cell.ships) {
+                        if (cell.ships.blue) {
+                            ctx.fillStyle = "blue";
+                            ctx.fillText("blue:"+cell.ships.blue, x, y+50);
+                        }
+                        if (cell.ships.red) {
+                            ctx.fillStyle = "red";
+                            ctx.fillText("red:"+cell.ships.red, x, y+40);
+                        }
+                        if (cell.ships.neutral) {
+                            ctx.fillStyle = "grey";
+                            ctx.fillText("neutral:"+cell.ships.neutral, x, y-20);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 CodeComponent = React.createClass({
     mixins: [
@@ -335,20 +398,25 @@ BoardComponent = React.createClass({
             </span>)
         }
 
-        return (<div className="game-board-container">
-            <h2>game: {boardStore.get('game_id')}</h2>
-            {errorText}
-            <table className="game-board"><tbody>
-                {_.map(rows, (row, num)=> {
-                    return <BoardRow
-                            cellWidth={""+Math.floor(100/width)+"%"}
-                            cellHeight={""+Math.floor(100/height)+"%"}
-                            cells={row}
-                            key={"cell-row-"+num} />
-                })}
-            </tbody></table>
-            <p>{turn_text}</p>
-        </div>);
+        return (
+            <div className="game-board-container">
+                <h2>game: {boardStore.get('game_id')}</h2>
+                {errorText}
+
+                <canvas id="boardCanvas"></canvas>
+
+                <table className="game-board"><tbody>
+                    {_.map(rows, (row, num)=> {
+                        return <BoardRow
+                                cellWidth={""+Math.floor(100/width)+"%"}
+                                cellHeight={""+Math.floor(100/height)+"%"}
+                                cells={row}
+                                key={"cell-row-"+num} />
+                    })}
+                </tbody></table>
+                <p>{turn_text}</p>
+            </div>
+        );
     }
 });
 
