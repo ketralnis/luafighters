@@ -88,12 +88,14 @@ def main():
                         default='info')
     parser.add_argument('--debug', dest='debug', action='store_true',
                         default=False)
+    parser.add_argument('--bind', dest='bind', default='0.0.0.0')
 
     args = parser.parse_args()
 
     logging.getLogger().setLevel(getattr(logging, args.logging.upper()))
 
-    return app.run(debug=args.debug)
+    return app.run(debug=args.debug,
+                   host=args.bind)
 
 
 if __name__ == '__main__':
