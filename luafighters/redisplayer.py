@@ -228,6 +228,13 @@ def apply_dumb_diff(d1, diff, _depth=0, dumb_diff_sentinel_value=None):
 
 def main():
     import redis
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--diff', dest='full', action='store_false', default=True)
+    parser.add_argument('--full', dest='full', action='store_true')
+
+    args = parser.parse_args()
 
     conn = redis.StrictRedis()
     game_id = 'myid'
@@ -244,7 +251,10 @@ def main():
         for diff in diffs:
             board = apply_dumb_diff(board, diff)
 
-            print json_dumps(board)
+            if args.full:
+                print json_dumps(board)
+            else:
+                print json_dumps(diff)
 
         if state.get('done'):
             break
