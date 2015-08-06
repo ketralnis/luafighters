@@ -2,7 +2,7 @@ import random
 
 from luafighters.utils import datafile
 from luafighters.board import Order
-from luafighters.executor import execute
+from luafighters.executor import Executor
 
 
 class Strategy(object):
@@ -55,6 +55,7 @@ class RandomStrategy(Strategy):
 
 class LuaStrategy(Strategy):
     def __init__(self, code):
+        self.executor = Executor()
         self.code = code
         self.state = None
 
@@ -105,7 +106,7 @@ class LuaStrategy(Strategy):
             'board': lboard,
             'state': self.state,
         }
-        ret = execute(self.code, **env)
+        ret = self.executor.execute(self.code, env)
         orders = self.lua_to_orders(ret[0])
 
         if len(ret) >= 2:

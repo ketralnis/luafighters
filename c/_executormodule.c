@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <pthread.h>
+#include <sys/time.h>
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
@@ -9,63 +12,30 @@
 
 #include "_executormodule.h"
 
-/*
- * the libraries require about 100k to run, but if we don't install tjhem we can
- * get by with about 10k
- */
-const size_t MAX_LUA_ALLOCATION=1024*1024;
-const size_t MAX_LUA_EXECUTION=50000000;
-const size_t MAX_LUA_DEPTH=10;
-
-struct custom_alloc_data {
-    size_t limit;
-    size_t used;
-};
-
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : \
                                        lua_gettop(L) + (i) + 1)
 
-void stackDump(lua_State *L) {
-    int i;
-    int top = lua_gettop(L);
-    for (i = 1; i <= top; i++) {  /* repeat for each level */
-        int t = lua_type(L, i);
-
-        switch (t) {
-
-        case LUA_TSTRING:  /* strings */
-                printf("`%s'", lua_tostring(L, i));
-                break;
-
-        case LUA_TBOOLEAN:  /* booleans */
-            printf(lua_toboolean(L, i) ? "true" : "false");
-            break;
-
-        case LUA_TNUMBER:  /* numbers */
-            printf("%g", lua_tonumber(L, i));
-            break;
-
-        default:  /* other values */
-            printf("%s", lua_typename(L, t));
-            break;
-
-        }
-        printf("  ");  /* put a separator */
-    }
-    printf("\n");  /* end the listing */
-}
-
-
 void* l_alloc_restricted (void *ud, void *ptr, size_t osize, size_t nsize) {
-   struct custom_alloc_data* alloc_data = (struct custom_alloc_data*)ud;
+    _Executor* self = (_Executor*)ud;
+
+    if(ptr == NULL) {
+        /*
+         * <http://www.lua.org/manual/5.2/manual.html#lua_Alloc>:
+         * When ptr is NULL, osize encodes the kind of object that Lua is
+         * allocating.
+         *
+         * Since we don't care about that, just mark it as 0
+         */
+        osize = 0;
+    }
 
     if (nsize == 0) {
         free(ptr);
-        alloc_data->used -= osize; /* subtract old size from used memory */
+        self->memory_used -= osize; /* subtract old size from used memory */
         return NULL;
     }
 
-    if (alloc_data->used + (nsize - osize) > alloc_data->limit) {
+    if (self->memory_used + (nsize - osize) > self->memory_limit) {
         /* too much memory in use */
         return NULL;
     }
@@ -73,15 +43,36 @@ void* l_alloc_restricted (void *ud, void *ptr, size_t osize, size_t nsize) {
     ptr = realloc(ptr, nsize);
     if (ptr) {
         /* reallocation successful */
-        alloc_data->used += (nsize - osize);
+        self->memory_used += (nsize - osize);
     }
 
     return ptr;
 }
 
+
 void time_limiting_hook(lua_State *L, lua_Debug *ar) {
-    lua_pushstring(L, "time quota exceeded");
-    lua_error(L);
+    // find our pointer back to self
+    lua_pushlightuserdata(L, (void *)&EXECUTOR_LUA_REGISTRY_KEY);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    _Executor* self = (_Executor*)lua_touserdata(L, -1);
+    lua_pop(L, 1); /* remove it from the stack now that we have it */
+
+    struct timeval end;
+
+    if(gettimeofday(&end, NULL)) {
+        lua_pushstring(L, "error checking time quota");
+        lua_error(L);
+        return;
+    }
+
+    time_t diff = ((end.tv_usec+1000000*end.tv_sec)
+                   - (self->script_started.tv_usec+1000000*self->script_started.tv_sec));
+
+    if(diff >= 1000*1000) {
+        lua_pushstring(L, "time quota exceeded");
+        lua_error(L);
+    }
 }
 
 int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
@@ -138,7 +129,10 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
             return 0;
         }
 
-        lua_pushlstring(L, body, len);
+        if(lua_pushlstring(L, body, len)==NULL) {
+            PyErr_NoMemory();
+            return 0;
+        }
 
     } else if(PyDict_Check(value)) {
         lua_newtable(L);
@@ -170,9 +164,11 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
              */
 
             if(!encode_python_to_lua(L, dkey, recursion+1)) {
+                lua_pop(L, 1); // remove the table
                 return 0;
             }
             if(!encode_python_to_lua(L, dvalue, recursion+1)) {
+                lua_pop(L, 2); // remove the table and the key
                 return 0;
             }
 
@@ -329,7 +325,92 @@ PyObject* serialize_lua_to_python(lua_State* L, int idx, int recursion) {
     return ret;
 }
 
-static PyObject* execute(PyObject* module, PyObject* args) {
+static int _Executor_init(_Executor *self, PyObject *args, PyObject *kwargs) {
+    int ret = 0;
+
+    static char *kwdlist[] = {NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,
+                                     "",
+                                     kwdlist)) {
+        // we take no arguments because our superclass is expected to handle
+        // them
+        return -1;
+    }
+
+    int have_lock = 0;
+
+    self->memory_used = 0;
+    self->memory_limit = MAX_LUA_ALLOCATION;
+
+    lua_State *L = NULL;
+
+    if(pthread_mutex_init(&self->l_mutex, NULL) != 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        goto error;
+    }
+    have_lock = 1;
+
+    /*
+     * All Lua contexts are held in this structure. We work with it almost
+     * all the time.
+     */
+    L = lua_newstate(l_alloc_restricted, (void*)self);
+    if(L == NULL) {
+        PyErr_NoMemory();
+        goto error;
+    }
+
+    /*
+     * Load Lua libraries. We go ahead and load them all up here, but in
+     * sandbox.lua we limit what can actually be called by the user
+     */
+    luaL_openlibs(L);
+
+    /* install our time-limiting hook */
+    lua_sethook(L, time_limiting_hook, LUA_MASKCOUNT, MAX_LUA_EXECUTION_HZ);
+
+    /*
+     * add a pointer back to the _Executor object within the lua_State.
+     * following the advice of <http://www.lua.org/pil/27.3.1.html> I'm using
+     * the address of a static pointer as a unique key into the registry table
+     */
+    lua_pushlightuserdata(L, (void *)&EXECUTOR_LUA_REGISTRY_KEY); /* push address */
+    lua_pushlightuserdata(L, (void*)self); /* push value */
+    /* registry[&EXECUTOR_LUA_REGISTRY_KEY] = self */
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    self->L = L;
+
+    goto done;
+
+error:
+    ret = -1;
+
+    if(have_lock) {
+        pthread_mutex_destroy(&self->l_mutex);
+    }
+
+    if(L != NULL) {
+        lua_close(L);
+    }
+
+done:
+    return ret;
+}
+
+static void _Executor_dealloc(_Executor* self) {
+    lua_close(self->L);
+    pthread_mutex_destroy(&self->l_mutex);
+    self->ob_type->tp_free((PyObject*)self);
+}
+
+static PyObject* _Executor__stack_top(_Executor* self) {
+    return PyInt_FromLong(lua_gettop(self->L));
+
+}
+
+static PyObject* _Executor_execute(_Executor* self, PyObject* args) {
     PyObject* env;
     PyObject* pyresult;
 
@@ -342,22 +423,12 @@ static PyObject* execute(PyObject* module, PyObject* args) {
         return NULL;
     }
 
-    struct custom_alloc_data alloc_data = {MAX_LUA_ALLOCATION, 0};
+    lua_State* L = self->L;
 
-    /*
-     * All Lua contexts are held in this structure. We work with it almost
-     * all the time.
-     */
-    lua_State *L = lua_newstate(l_alloc_restricted, &alloc_data);
-
-    /*
-     * Load Lua libraries. We go ahead and load them all up here, but in
-     * sandbox.lua we limit what can actually be called
-     */
-    luaL_openlibs(L);
-
-    /* install our time-limiting hook */
-    lua_sethook(L, time_limiting_hook, LUA_MASKCOUNT, MAX_LUA_EXECUTION);
+    if(gettimeofday(&self->script_started, NULL)) {
+        PyErr_SetString(PyExc_RuntimeError, "error building time quota checker");
+        return NULL;
+    }
 
     /* if we got an environment to pass in, translate it from Python to Lua */
     if(PyDict_Size(env)>=0 && !serialize_python_to_lua(L, env)) {
@@ -366,7 +437,7 @@ static PyObject* execute(PyObject* module, PyObject* args) {
     }
 
     /* Load the the script we are going to run */
-    if (luaL_loadbufferx(L, program_code, program_len, "sandboxer", "t")) {
+    if (luaL_loadbufferx(L, program_code, program_len, "_executor", "t")) {
         /* If something went wrong, error message is at the top of the stack */
 
         /* copy the errstring out into a Python string */
@@ -384,12 +455,16 @@ static PyObject* execute(PyObject* module, PyObject* args) {
     int stack_top_before = lua_gettop(L);
     int lua_result;
 
+    // TODO check the return value here
+    pthread_mutex_lock(&self->l_mutex);
     Py_BEGIN_ALLOW_THREADS;
 
     /* Ask Lua to run our script */
     lua_result = lua_pcall(L, 0, LUA_MULTRET, 0);
 
     Py_END_ALLOW_THREADS;
+    // TODO check the return value here
+    pthread_mutex_unlock(&self->l_mutex);
 
     if(lua_result != LUA_OK) {
         /* If something went wrong, error message is at the top of the stack */
@@ -397,7 +472,9 @@ static PyObject* execute(PyObject* module, PyObject* args) {
         /* copy the errstring out */
         PyObject* pyerrstring = PyString_FromStringAndSize(lua_tostring(L, -1),
                                                            lua_rawlen(L, -1));
+        lua_pop(L, 1);
          if(!pyerrstring) {
+            // what can we even do with this
             goto done;
         }
 
@@ -433,20 +510,24 @@ static PyObject* execute(PyObject* module, PyObject* args) {
         int stacknum = stack_top_before+i;
         PyObject* thisresult = serialize_lua_to_python(L, stacknum, 0);
         if(thisresult==NULL) {
-            Py_DECREF(pyresult);
-            goto done;
+            goto error;
         }
-        // steals the thisresult ref
+        // steals the thisresult ref, even if it fails
         if(PyTuple_SetItem(pyresult, i, thisresult)==-1) {
-            Py_DECREF(pyresult);
-            goto done;
+            goto error;
         }
+    }
+
+    lua_pop(L, results_returned);
+    goto done;
+
+error:
+    if(pyresult != NULL) {
+        Py_DECREF(pyresult);
     }
     lua_pop(L, results_returned);
 
 done:
-    lua_close(L);
-
     if(PyErr_Occurred()) {
         return NULL;
     }
@@ -455,5 +536,29 @@ done:
 }
 
 PyMODINIT_FUNC init_executor(void) {
-     (void)Py_InitModule("_executor", _executor_methods);
+    // initialise the module
+
+    PyObject* module;
+
+    // have to do this here because some C compilers have issues with static
+    // references between modules. we can take this out when we make our own
+    _ExecutorType.tp_new = PyType_GenericNew;
+
+    if (PyType_Ready(&_ExecutorType) < 0) {
+        /* exception raised in preparing */
+        return;
+    }
+
+    module = Py_InitModule3("_executor",
+        NULL, /* no functions of our own */
+        "C module that implements the Lua-Python bridge");
+
+    if (module == NULL) {
+        /* exception raised in preparing */
+        return;
+    }
+
+    /* make it visible */
+    Py_INCREF(&_ExecutorType);
+    PyModule_AddObject(module, "_Executor", (PyObject *)&_ExecutorType);
 }
