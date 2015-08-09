@@ -15,7 +15,7 @@ function make_sandbox()
         coroutine = {
             create = coroutine.create, resume = coroutine.resume,
             running = coroutine.running, status = coroutine.status,
-            wrap = coroutine.wrap
+            wrap = coroutine.wrap, yield = coroutine.yield,
         },
         string = {
             byte = string.byte, char = string.char, format = string.format,
@@ -24,7 +24,7 @@ function make_sandbox()
         },
         table = {
             insert = table.insert, maxn = table.maxn, remove = table.remove,
-            sort = table.sort
+            sort = table.sort, pack = table.pack, unpack = table.unpack,
         },
         math = {
             abs = math.abs, acos = math.acos, asin = math.asin,
@@ -52,7 +52,7 @@ function make_sandbox()
     return sandbox_env
 end
 
-function run_sandbox(env_globals, libraries, sb_func)
+function run_sandbox(env_globals, code, desc)
     local sandbox_env = {}
 
     for k,v in pairs(make_sandbox()) do
@@ -63,13 +63,14 @@ function run_sandbox(env_globals, libraries, sb_func)
         sandbox_env[k] = v
     end
 
-    for library, code in pairs(libraries) do
-        local fn = assert(load(code, "library:"..library, "t", sandbox_env))
-        fn()
+    ret = {}
+
+    for library, segment in ipairs(code) do
+        local fn = assert(load(segment, desc.."#"..library, "t", sandbox_env))
+        ret = table.pack(fn())
     end
 
-    local user_chunk = assert(load(sb_func, "userbuff", "t", sandbox_env))
-    return user_chunk()
+    return table.unpack(ret)
 end
 
-return run_sandbox(env, libraries, user_code)
+return run_sandbox(env or {}, code, desc or 'code')

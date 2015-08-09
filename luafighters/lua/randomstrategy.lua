@@ -1,8 +1,6 @@
 -- Strategy: total chaos. They can't guess our strategy because even we don't
 -- know what it is
 
-orders = {}
-
 function capped_random(x, min, max)
     choices = {0}
     if x-1 >= min then
@@ -14,24 +12,15 @@ function capped_random(x, min, max)
     return choices[math.random(#choices)]
 end
 
-for y, rows in pairs(board.cells) do
-    for x, cell in pairs(rows) do
-        ships = cell.ships and cell.ships[player] -- may be nil
-        if ships then
-            moveships = math.random(0, ships)
-            dest_x = capped_random(x, 1, board.width)
-            dest_y = capped_random(y, 1, board.height)
+for x, y, cell in board:iterate() do
+    my_ships = cell.ships and cell.ships[player] -- may be nil
+    if my_ships then
+        moveships = math.random(0, my_ships)
+        dest_x = x+capped_random(x, 1, board.width)
+        dest_y = y+capped_random(y, 1, board.height)
 
-            if moveships > 0 and not (dest_x ~= 0 and dest_y ~= 0) then
-                order = {
-                    source_x=x, source_y=y,
-                    dest_x=x+dest_x, dest_y=y+dest_y,
-                    shipcount=moveships,
-                }
-                table.insert(orders, order)
-            end
+        if moveships > 0 and not (x==dest_x and x==dest_y) then
+            orders:create(x, y, dest_x, dest_y, moveships)
         end
     end
 end
-
-return orders

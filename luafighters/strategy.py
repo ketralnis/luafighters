@@ -2,7 +2,7 @@ import random
 
 from luafighters.utils import datafile
 from luafighters.board import Order
-from luafighters.executor import Executor
+from luafighters.executor import BoardExecutor
 
 
 class Strategy(object):
@@ -55,12 +55,13 @@ class RandomStrategy(Strategy):
 
 class LuaStrategy(Strategy):
     def __init__(self, code):
-        self.executor = Executor()
+        self.executor = BoardExecutor()
         self.code = code
         self.state = None
 
     def board_to_lua(self, board):
         lboard = {
+            'turn_count': board.turn_count,
             'height': board.height,
             'width': board.width,
             'cells': {},
@@ -106,7 +107,8 @@ class LuaStrategy(Strategy):
             'board': lboard,
             'state': self.state,
         }
-        ret = self.executor.execute(self.code, env)
+        ret = self.executor.execute(self.code, env,
+                                    desc=player)
         orders = self.lua_to_orders(ret[0])
 
         if len(ret) >= 2:
@@ -132,9 +134,9 @@ example_strategies = {
 }
 
 example_players = {
-    'blue': LuaStrategy(example_strategies['opportuniststrategy']),
-    'cyan': LuaStrategy(example_strategies['attackneareststrategy']),
-    'magenta': LuaStrategy(example_strategies['randomstrategy']),
-    'red': LuaStrategy(example_strategies['nullstrategy']),
+    'blue': LuaStrategy(example_strategies['attackneareststrategy']),
+    'cyan': LuaStrategy(example_strategies['nullstrategy']),
+    'magenta': LuaStrategy(example_strategies['opportuniststrategy']),
+    'red': LuaStrategy(example_strategies['randomstrategy']),
     'yellow': LuaStrategy(example_strategies['statefulopportuniststrategy']),
 }

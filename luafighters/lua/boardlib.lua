@@ -1,5 +1,9 @@
+orders = {}
 state = state or {}
 logs = {}
+-- we should be passed a board, but it may be possible that we aren't if we're
+-- called outside of an actual game, like during the tests
+board = board or {}
 
 function find_path(source_x, source_y, dest_x, dest_y)
     -- naive pathfinding. given your location and where you want to go, give the
@@ -23,5 +27,45 @@ function distance(source_x, source_y, dest_x, dest_y)
 end
 
 function log(...)
-    table.insert(logs, string.format(...))
+    table.insert(logs, '#'..board.turn_count..': '..string.format(...))
+end
+
+
+board.cell_at = function(board, x, y)
+    return board.cells[y][x]
+end
+
+-- yields all cells on the board
+board.iterate = function(board)
+    return coroutine.wrap(function()
+        for y = 1, board.height do
+            for x = 1, board.width do
+                cell = board:cell_at(x,y)
+                coroutine.yield(x, y, cell)
+            end
+        end
+    end)
+end
+
+-- yields all cells containing planets
+board.planets = function(board)
+    return coroutine.wrap(function()
+        for x, y, cell in board:iterate() do
+            if cell.planet then
+                coroutine.yield(x, y, cell)
+            end
+        end
+    end)
+end
+
+function create_order(source_x, source_y, dest_x, dest_y, shipcount)
+    return {source_x=source_x, source_y=source_y,
+            dest_x=dest_x, dest_y=dest_y,
+            shipcount=shipcount}
+end
+
+
+orders.create = function(orders, ...)
+    order = create_order(...)
+    table.insert(orders, order)
 end

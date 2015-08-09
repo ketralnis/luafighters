@@ -8,7 +8,7 @@ def play_game(board, strategies):
     players = sorted(filter(lambda x: x!='neutral', board.players))
     assert players == sorted(strategies.keys())
 
-    for turncount, player in enumerate(cycle(players)):
+    for turn_count, player in enumerate(cycle(players)):
         if player == 'neutral':
             # the neutral player doesn't go
             logging.debug("Skipping neutral turn")
@@ -18,6 +18,8 @@ def play_game(board, strategies):
             # they are dead, they don't get to go
             logging.info("Skipping %r", player)
             continue
+
+        board.turn_count = turn_count+1
 
         orders = strategies[player].make_turn(player, board)
 
@@ -122,8 +124,8 @@ def play_game(board, strategies):
             # the game is over, this player has won
             logging.info("Terminating with victory: %r", determine_victor(board))
             return
-        elif turncount > 100*1000:
-            logging.info("Terminating after too many turns", turncount)
+        elif turn_count > 100*1000:
+            logging.info("Terminating after too many turns", turn_count)
             return
 
 

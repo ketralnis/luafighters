@@ -84,6 +84,7 @@ class Board(object):
     __repr__ = simplerepr
 
     def __init__(self, players, width, height):
+        self.turn_count = 0
         self.turn = players[0]
         self.players = players
         self.width = width

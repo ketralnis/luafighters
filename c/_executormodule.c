@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include <pthread.h>
 #include <sys/time.h>
@@ -133,7 +134,6 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
             PyErr_NoMemory();
             return 0;
         }
-
     } else if(PyDict_Check(value)) {
         lua_newtable(L);
 
@@ -176,14 +176,64 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
             lua_settable(L, -3);
         }
 
-
     } else {
-        PyErr_SetString(PyExc_TypeError, "cannot serialize unknown python type");
+        format_python_exception(PyExc_TypeError,
+                                "cannot serialize unknown python type of %r",
+                                value, NULL);
         return 0;
     }
 
     return 1;
 }
+
+void format_python_exception(PyObject* exc_type, const char *fmt, ...) {
+    PyObject* err_format = NULL;
+    PyObject* arg_tuple = NULL;
+    PyObject* formatted = NULL;
+    PyObject* p = NULL;
+    int num_objs = 0;
+    va_list argp;
+
+    va_start(argp, fmt);
+
+    err_format = PyString_FromString(fmt);
+    if(err_format==NULL) {
+        goto cleanup;
+    }
+
+    arg_tuple = PyTuple_New(0);
+    if(arg_tuple==NULL) {
+        goto cleanup;
+    }
+
+    while((p = va_arg(argp, PyObject*)) != NULL) {
+        num_objs += 1;
+        if(_PyTuple_Resize(&arg_tuple, num_objs) == -1) {
+            goto cleanup;
+        }
+        Py_INCREF(p); // PyTuple_SET_ITEM will steal a reference but we borrowed it
+        PyTuple_SET_ITEM(arg_tuple, num_objs-1, p);
+    }
+
+    formatted = PyString_Format(err_format, arg_tuple);
+    if(formatted==NULL) {
+        goto cleanup;
+    }
+
+    /* everything was successful, set the new object on the stack */
+    PyErr_SetObject(exc_type, formatted);
+
+cleanup:
+
+    /* however we got here, an exception should be set on the stack */
+
+    va_end(argp);
+
+    Py_XDECREF(err_format);
+    Py_XDECREF(arg_tuple);
+    /*if formatted isn't null, then it's a good exception already on the stack*/
+}
+
 
 int serialize_python_to_lua(lua_State* L, PyObject* env) {
     /*
@@ -318,7 +368,9 @@ PyObject* serialize_lua_to_python(lua_State* L, int idx, int recursion) {
         break;
 
     default:
-        PyErr_SetString(PyExc_RuntimeError, "cannot serialize unknown Lua type");
+        PyErr_Format(PyExc_RuntimeError,
+                     "cannot serialize unknown Lua type %s",
+                     lua_typename(L, lua_type(L, idx)));
         return NULL;
     }
 

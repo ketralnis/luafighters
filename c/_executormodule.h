@@ -11,12 +11,14 @@
  * the libraries require about 100k to run on their own
  */
 const size_t MAX_LUA_ALLOCATION=1024*1024;
-const size_t MAX_LUA_EXECUTION_HZ=50000000;
-const size_t MAX_LUA_DEPTH=10;
+const int MAX_LUA_EXECUTION_HZ=500000;
+const int MAX_LUA_DEPTH=10;
 
 static const char* EXECUTOR_LUA_REGISTRY_KEY = "_Executor";
 
 /* prototypes */
+
+void format_python_exception(PyObject* exc_type, const char *fmt, ...);
 
 typedef struct {
     PyObject_HEAD

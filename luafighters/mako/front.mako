@@ -24,7 +24,7 @@
         <h4>The rules of the game</h4>
         <ul>
             <li>The game board consists in a grid containing cells</li>
-            <li>Cells may contain ships belonging to one or more players</li>
+            <li>Cells may contain ships belonging to one or more players (but no more than 999 belonging to a single player).</li>
             <li>Cells may also contain a planet, which has an owner and a size</li>
             <li>Every tick, planets produce ships for their owner in relation to their size</li>
             <li>Every tick that ships are in the same cell as enemy ships, half of each army does battle, destroying some of each army in relation to their sizes</li>
