@@ -162,29 +162,38 @@ class TestLuaExecution(unittest.TestCase):
 
 class TestSafeguards(TestLuaExecution):
     def test_memory(self):
-        program = """
+
+        def _tester(program):
+            start_time = time.time()
+            with self.assertRaises(RuntimeError):
+                self.ex.execute(program)
+            self.assertLess(time.time()-start_time, 1.1)
+
+        _tester("""
             foo = {}
             while #foo < 50000000 do
                 foo[#foo+1] = 1
             end
             return 1
-        """
-        with self.assertRaises(RuntimeError):
-            self.ex.execute(program)
+        """)
+
+        _tester("""
+            ('lol'):rep(1e9)
+        """)
 
     def test_timeout(self):
-        start = time.time()
+        def _tester(program):
+            start_time = time.time()
+            with self.assertRaises(RuntimeError):
+                self.ex.execute(program)
+            self.assertLess(time.time()-start_time, 1.1)
 
-        program = """
+        _tester("""
             foo = {}
             while true do
             end
             return 1
-        """
-        with self.assertRaises(RuntimeError):
-            self.ex.execute(program)
-
-        self.assertLess(time.time() - start, 1.1)
+        """)
 
     def test_no_print(self):
         # make sure we didn't pass any libraries to the client program
