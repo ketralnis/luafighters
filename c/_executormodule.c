@@ -13,6 +13,14 @@
 
 #include "_executormodule.h"
 
+#if LUA_VERSION_NUM == 501
+// lua5.1 doesn't define this, but uses it the same way
+#define LUA_OK 0
+#elif LUA_VERSION_NUM == 502
+#else
+#error "I only know Lua 5.1 and 5.2"
+#endif
+
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : \
                                        lua_gettop(L) + (i) + 1)
 
@@ -130,10 +138,15 @@ int encode_python_to_lua(lua_State* L, PyObject* value, int recursion) {
             return 0;
         }
 
+#if LUA_VERSION_NUM == 501
+        lua_pushlstring(L, body, len);
+#elif LUA_VERSION_NUM == 502
         if(lua_pushlstring(L, body, len)==NULL) {
             PyErr_NoMemory();
             return 0;
         }
+#endif
+
     } else if(PyDict_Check(value)) {
         lua_newtable(L);
 
@@ -283,6 +296,9 @@ PyObject* serialize_lua_to_python(lua_State* L, int idx, int recursion) {
     double as_double;
     int as_boolean;
 
+    const char* string;
+    size_t string_len;
+
     /* convert to absolute index because we'll mess with the stack */
     idx = abs_index(L, idx);
 
@@ -317,8 +333,8 @@ PyObject* serialize_lua_to_python(lua_State* L, int idx, int recursion) {
         break;
 
     case LUA_TSTRING:
-        ret = PyString_FromStringAndSize(lua_tostring(L, idx),
-                                         lua_rawlen(L, idx));
+        string = lua_tolstring(L, idx, &string_len);
+        ret = PyString_FromStringAndSize(string, string_len);
         if(ret==NULL) {
             return NULL;
         }
@@ -407,11 +423,24 @@ static int _Executor_init(_Executor *self, PyObject *args, PyObject *kwargs) {
      * All Lua contexts are held in this structure. We work with it almost
      * all the time.
      */
+
+#if LUA_VERSION_NUM == 501
+    L = luaL_newstate();
+    /* set up our custom allocator */
+    if(L!= NULL) lua_setallocf(L, l_alloc_restricted, (void*)self);
+#elif LUA_VERSION_NUM == 502
     L = lua_newstate(l_alloc_restricted, (void*)self);
+#endif
+
     if(L == NULL) {
         PyErr_NoMemory();
         goto error;
     }
+
+    /*
+     * TODO have to set a panic function in 501 since we can't catch pushlstring
+     * OOMs, which are probably the most common type of them
+     */
 
     /*
      * Load Lua libraries. We go ahead and load them all up here, but in
@@ -452,7 +481,10 @@ done:
 }
 
 static void _Executor_dealloc(_Executor* self) {
-    lua_close(self->L);
+    if(self->L != NULL) {
+        /* may be NULL if we died during the constructor */
+        lua_close(self->L);
+    }
     pthread_mutex_destroy(&self->l_mutex);
     self->ob_type->tp_free((PyObject*)self);
 }
@@ -468,6 +500,9 @@ static PyObject* _Executor_execute(_Executor* self, PyObject* args) {
 
     char* program_code = NULL;
     size_t program_len = 0;
+
+    const char* err_string;
+    size_t err_string_len;
 
     if(!PyArg_ParseTuple(args, "s#O!",
                          &program_code, &program_len,
@@ -493,8 +528,10 @@ static PyObject* _Executor_execute(_Executor* self, PyObject* args) {
         /* If something went wrong, error message is at the top of the stack */
 
         /* copy the errstring out into a Python string */
-        PyObject* pyerrstring = PyString_FromStringAndSize(lua_tostring(L, -1),
-                                                           lua_rawlen(L, -1));
+        err_string = lua_tolstring(L, -1, &err_string_len);
+        PyObject* pyerrstring = PyString_FromStringAndSize(err_string,
+                                                           err_string_len);
+         lua_pop(L, 1);
          if(!pyerrstring) {
             goto done;
         }
@@ -522,8 +559,9 @@ static PyObject* _Executor_execute(_Executor* self, PyObject* args) {
         /* If something went wrong, error message is at the top of the stack */
 
         /* copy the errstring out */
-        PyObject* pyerrstring = PyString_FromStringAndSize(lua_tostring(L, -1),
-                                                           lua_rawlen(L, -1));
+        err_string = lua_tolstring(L, -1, &err_string_len);
+        PyObject* pyerrstring = PyString_FromStringAndSize(err_string,
+                                                           err_string_len);
         lua_pop(L, 1);
          if(!pyerrstring) {
             // what can we even do with this
