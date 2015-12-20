@@ -1,5 +1,5 @@
 from luafighters.utils import datafile
-from luafighters._executor import _Executor
+from luafighters._executor import _LuaExecutor
 
 sandboxer = datafile('lua/sandbox.lua')
 boardlib = datafile('lua/boardlib.lua')
@@ -8,17 +8,17 @@ returner = datafile('lua/returner.lua')
 def list_to_table(l):
     return {i+1: itm for i,itm in enumerate(l)}
 
-class SandboxedExecutor(_Executor):
+class SandboxedExecutor(_LuaExecutor):
     """
     Execute in the sandbox with no libraries
     """
     def execute(self, program, env=None, desc=None):
         libs = list_to_table([program])
-        return _Executor.execute(self,
-                                 sandboxer,
-                                 {'code': libs,
-                                  'env': env,
-                                  'desc': desc})
+        return _LuaExecutor.execute(self,
+                                    sandboxer,
+                                    {'code': libs,
+                                     'env': env,
+                                     'desc': desc})
 
 class BoardlibExecutor(SandboxedExecutor):
     """
@@ -26,11 +26,11 @@ class BoardlibExecutor(SandboxedExecutor):
     """
     def execute(self, program, env=None, desc=None):
         libs = list_to_table([boardlib, program])
-        return _Executor.execute(self,
-                                 sandboxer,
-                                 {'code': libs,
-                                  'env': env,
-                                  'desc': desc})
+        return _LuaExecutor.execute(self,
+                                    sandboxer,
+                                    {'code': libs,
+                                     'env': env,
+                                     'desc': desc})
 
 class BoardExecutor(SandboxedExecutor):
     """
@@ -39,8 +39,8 @@ class BoardExecutor(SandboxedExecutor):
     """
     def execute(self, program, env=None, desc=None):
         libs = list_to_table([boardlib, program, returner])
-        return _Executor.execute(self,
-                                 sandboxer,
-                                 {'code': libs,
-                                  'env': env,
-                                  'desc': desc})
+        return _LuaExecutor.execute(self,
+                                    sandboxer,
+                                    {'code': libs,
+                                     'env': env,
+                                     'desc': desc})

@@ -19,6 +19,9 @@ ${INSTALLEDENV}: setup.py
 	make check_dependencies
 	rm -fr .env
 	virtualenv .env
+	make rebuild
+
+rebuild:
 	.env/bin/python ./setup.py develop
 	touch ${INSTALLEDENV}
 

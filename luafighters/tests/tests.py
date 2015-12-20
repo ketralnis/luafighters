@@ -2,7 +2,6 @@ import unittest
 import time
 
 from luafighters.executor import SandboxedExecutor
-from luafighters.executor import BoardExecutor
 from luafighters.executor import BoardlibExecutor
 
 

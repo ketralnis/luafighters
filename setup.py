@@ -29,7 +29,7 @@ _executor = Extension('luafighters._executor',
                       libraries=[LUA_LIB, 'm'],
                       library_dirs=LIBRARY_DIRS,
                       include_dirs=['./c'] + INCLUDE_DIRS,
-                      sources=['c/_executormodule.c'],
+                      sources=['c/_executormodule.c', 'c/_luaexecutor.c'],
                       extra_compile_args=['-std=c99'] + EXTRA_COMPILE_ARGS,
                       extra_link_args=EXTRA_LINK_ARGS,
                       )
