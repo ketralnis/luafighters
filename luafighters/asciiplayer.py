@@ -1,6 +1,7 @@
 import sys
 import termcolor
 import time
+import itertools
 
 from luafighters import strategy
 from luafighters import game
@@ -16,10 +17,23 @@ colours = [
 ]
 
 
-def coloured_player(player, s):
+def coloured_player(players, player, s, cache={}):
     if player == 'neutral':
         return s
-    return termcolor.colored(s, player)
+
+    if player in cache:
+        colour = cache[player]
+    else:
+        all_colours = itertools.chain(colours, itertools.repeat(None))
+        players = filter(lambda x: x != 'neutral', players)
+        player_colours = dict(zip(players, all_colours))
+        colour = player_colours[player]
+        cache[player] = colour
+
+    if colour:
+        return termcolor.colored(s, colour)
+    else:
+        return s
 
 
 def board_to_ascii(board):
@@ -41,7 +55,9 @@ def board_to_ascii(board):
             if cell.planet:
                 planetstr = '%s(%d)' % (cell.planet.owner[0], cell.planet.size)
                 spacers -= len(planetstr)
-                buf.append(coloured_player(cell.planet.owner, planetstr))
+                buf.append(coloured_player(board.players,
+                                           cell.planet.owner,
+                                           planetstr))
 
                 buf.append(' ')
                 spacers -= len(' ')
@@ -53,7 +69,8 @@ def board_to_ascii(board):
                         spacers -= len(',')
                     shipstr = str(cell.ships.get(player, 0))
                     if cell.ships.get(player, 0):
-                        buf.append(coloured_player(player, shipstr))
+                        buf.append(coloured_player(board.players,
+                                                   player, shipstr))
                     else:
                         buf.append(shipstr)
                     spacers -= len(shipstr)
@@ -70,8 +87,12 @@ def board_to_ascii(board):
             if cell.planet and cell.planet.owner == player:
                 playerplanets += 1
                 playerplanetsize += cell.planet.size
-        buf.append(coloured_player(player, "%s: %d +%d (%d)"
-                            % (player, playersum, playerplanetsize, playerplanets)))
+        buf.append(
+            coloured_player(board.players,
+                            player,
+                            ("%s: %d +%d (%d)"
+                             % (player, playersum,
+                                playerplanetsize, playerplanets))))
         buf.append('\n')
     return ''.join(buf)
 
