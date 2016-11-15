@@ -1,46 +1,28 @@
+from lua_sandbox.executor import SandboxedExecutor
+
 from luafighters.utils import datafile
-from luafighters._executor import _LuaExecutor
 
-sandboxer = datafile('lua/sandbox.lua')
-boardlib = datafile('lua/boardlib.lua')
-returner = datafile('lua/returner.lua')
 
-def list_to_table(l):
-    return {i+1: itm for i,itm in enumerate(l)}
+class BoardExecutor(object):
+    sandboxer = datafile('lua/sandbox.lua')
+    boardlib = datafile('lua/boardlib.lua')
 
-class SandboxedExecutor(_LuaExecutor):
-    """
-    Execute in the sandbox with no libraries
-    """
-    def execute(self, program, env=None, desc=None):
-        libs = list_to_table([program])
-        return _LuaExecutor.execute(self,
-                                    sandboxer,
-                                    {'code': libs,
-                                     'env': env,
-                                     'desc': desc})
+    def __init__(self, code):
+        self.lua = SandboxedExecutor(name=self.__class__.__name__,
+                                     max_memory=20*1024*1024,
+                                     sandboxer=self.sandboxer,
+                                     libs=[self.boardlib])
+        self.fn = self.lua.sandboxed_load(code, desc='loaded')
 
-class BoardlibExecutor(SandboxedExecutor):
-    """
-    Execute in the sandbox with the boardlib library available
-    """
-    def execute(self, program, env=None, desc=None):
-        libs = list_to_table([boardlib, program])
-        return _LuaExecutor.execute(self,
-                                    sandboxer,
-                                    {'code': libs,
-                                     'env': env,
-                                     'desc': desc})
+    def execute(self, **env):
+        for k, v in env.iteritems():
+            self.lua.sandbox[k] = v
 
-class BoardExecutor(SandboxedExecutor):
-    """
-    Execute in the sandbox with the boardlib library available, and also our
-    boardlib return wrapper
-    """
-    def execute(self, program, env=None, desc=None):
-        libs = list_to_table([boardlib, program, returner])
-        return _LuaExecutor.execute(self,
-                                    sandboxer,
-                                    {'code': libs,
-                                     'env': env,
-                                     'desc': desc})
+        with self.lua.limit_runtime(max_runtime=3.0):
+            self.fn()
+
+        ret = self.lua.sandbox['orders'].to_python()
+
+        self.lua.sandbox['orders'] = {}
+
+        return ret

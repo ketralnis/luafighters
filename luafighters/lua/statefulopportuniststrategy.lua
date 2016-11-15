@@ -5,7 +5,7 @@
 
 -- build up the list of enemy planets
 enemy_planets = {}
-for x, y, cell in board:planets() do
+for x, y, cell in planets() do
     if cell.planet.owner ~= player then
         enemy_ships = 0
 
@@ -28,7 +28,7 @@ end
 -- recalculate every 100 turns, or every time we conquer the one we're after
 if (board.turn_count%100==0
     or (state.target
-        and board:cell_at(state.target.x, state.target.y).planet.owner == player)) then
+        and cell_at(state.target.x, state.target.y).planet.owner == player)) then
     state.target = nil
 end
 
@@ -47,7 +47,7 @@ end
 
 -- now send all of our attack ships to that planet
 
-for x, y, cell in board:iterate() do
+for x, y, cell in iterate() do
     my_ships = cell.ships and cell.ships[player] -- may be nil
     if my_ships then
         -- figure out how many ships to send
@@ -74,7 +74,7 @@ for x, y, cell in board:iterate() do
             dest_x,dest_y)
 
         if send_ships > 0 and not (dest_x == x and dest_y == y) then
-            orders:create(x,y, dest_x,dest_y, send_ships)
+            order(x,y, dest_x,dest_y, send_ships)
         end
     end
 end

@@ -2,7 +2,7 @@
 
 -- build up the list of enemy planets
 enemy_planets = {}
-for x, y, cell in board:planets() do
+for x, y, cell in planets() do
     if cell.planet.owner ~= player then
         table.insert(enemy_planets, {x=x, y=y, cell=cell})
     end
@@ -12,7 +12,7 @@ if #enemy_planets == 0 then
     return -- nothing to do if we have no enemies
 end
 
-for x, y, cell in board:iterate() do
+for x, y, cell in iterate() do
     my_ships = cell.ships and cell.ships[player] -- may be nil
     if my_ships then
         -- find the nearest planet
@@ -26,7 +26,7 @@ for x, y, cell in board:iterate() do
         if x~=nearest.x or y~=nearest.y then
             dest_x, dest_y = find_path(x, y, nearest.x, nearest.y)
 
-            orders:create(x,y, dest_x,dest_y, my_ships)
+            order(x,y, dest_x,dest_y, my_ships)
         end
     end
 end

@@ -12,7 +12,7 @@ function capped_random(x, min, max)
     return choices[math.random(#choices)]
 end
 
-for x, y, cell in board:iterate() do
+for x, y, cell in iterate() do
     my_ships = cell.ships and cell.ships[player] -- may be nil
     if my_ships then
         moveships = math.random(0, my_ships)
@@ -20,7 +20,7 @@ for x, y, cell in board:iterate() do
         dest_y = y+capped_random(y, 1, board.height)
 
         if moveships > 0 and not (x==dest_x and x==dest_y) then
-            orders:create(x, y, dest_x, dest_y, moveships)
+            order(x, y, dest_x, dest_y, moveships)
         end
     end
 end

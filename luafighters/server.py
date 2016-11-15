@@ -12,7 +12,7 @@ from luafighters import strategy
 from luafighters import utils
 from luafighters import redisplayer
 
-conn = redis.StrictRedis() # global connection
+conn = redis.StrictRedis()  # global connection
 
 app = Flask(__name__)
 

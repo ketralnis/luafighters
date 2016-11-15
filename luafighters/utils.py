@@ -8,14 +8,6 @@ def datafile(name, filecache={}):
     return filecache[name]
 
 
-def coroutine(func):
-    def start(*args, **kwargs):
-        cr = func(*args, **kwargs)
-        cr.next()
-        return cr
-    return start
-
-
 def to_base(q, alphabet):
     if q < 0:
         raise ValueError("must supply a positive integer")

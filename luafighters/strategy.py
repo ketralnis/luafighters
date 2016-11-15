@@ -53,11 +53,10 @@ class RandomStrategy(Strategy):
             choices.append(1)
         return random.choice(choices)
 
+
 class LuaStrategy(Strategy):
     def __init__(self, code):
-        self.executor = BoardExecutor()
-        self.code = code
-        self.state = None
+        self.executor = BoardExecutor(code=code)
 
     def board_to_lua(self, board):
         lboard = {
@@ -105,18 +104,14 @@ class LuaStrategy(Strategy):
         env = {
             'player': player,
             'board': lboard,
-            'state': self.state,
         }
-        ret = self.executor.execute(self.code, env,
-                                    desc=player)
-        orders = self.lua_to_orders(ret[0])
 
-        if len(ret) >= 2:
-            self.state = ret[1]
+        orders = self.executor.execute(
+            player=player,
+            board=lboard)
+        orders = self.lua_to_orders(orders)
 
-        if len(ret) >= 3:
-            logs = [x[1] for x in sorted(ret[2].items())]
-            # TODO we're not using these
+        # TODO we're ignoring logs
 
         return orders
 

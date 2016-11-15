@@ -108,12 +108,11 @@ def main():
         print "%s's turn #%d" % (player, turncount)
         print board_to_ascii(board)
 
-        time.sleep(0.25)
+        time.sleep(0.1)
 
     print board_to_ascii(board)
     winner = game.determine_victor(board)
     print '*'*20, '%s wins after %d cycles and %.2fs' % (winner, turncount, time.time()-start_time)
-
 
 
 if __name__== "__main__":

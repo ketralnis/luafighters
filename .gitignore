@@ -6,6 +6,6 @@ dump.rdb
 node_modules
 compiled.js
 compiled.js.map
-luafighters/_executor.so
-.env
-build.conf
+.DS_Store
+.vagrant
+npm-debug.log

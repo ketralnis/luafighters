@@ -1,20 +1,21 @@
 {
   "name": "luafighters",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "dependencies" : {
-    "react": "latest",
-    "immutable": "latest",
-    "fynx": "latest",
-    "fynx-mixins": "latest",
-    "lodash": "latest",
+    "react": "v0.13",
+    "react-tools": "0.13.3",
+    "immutable": "3.8.1",
+    "fynx": "v2.0.0-alpha7",
+    "fynx-mixins": "v1.0.0",
+    "lodash": "v4.17.0",
     "jquery": ">= 1.9.1",
     "bootstrap": "3.3.4"
   },
   "devDependencies": {
-    "browserify": "latest",
-    "watchify": "latest",
-    "reactify": "latest",
-    "uglifyify": "latest",
-    "exorcist": "latest"
+    "browserify": "v13.1.1",
+    "watchify": "v3.7.0",
+    "reactify": "v1.1.1",
+    "uglifyify": "v3.0.4",
+    "exorcist": "v0.4.0"
   }
 }

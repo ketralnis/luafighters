@@ -1,8 +1,9 @@
-How to install:
+* Install Vagrant https://www.vagrantup.com/
+* run `vagrant up`
+* Point a browser to http://localhost:5000/
 
-* install redis
-* install lua
-* install npm
-* install virtualenv
-* edit setup.py library_dirs and include_dirs to point to your Lua (go ahead and commit this if you have to do it)
-* run make dev
+For development it can help to:
+
+    vagrant ssh -c 'cd luafighters && make asciiplayer'
+
+You may need to resize your terminal

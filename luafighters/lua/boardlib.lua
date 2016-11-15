@@ -1,6 +1,7 @@
-orders = {}
+orders = orders or {}
 state = state or {}
-logs = {}
+logs = logs or {}
+
 -- we should be passed a board, but it may be possible that we aren't if we're
 -- called outside of an actual game, like during the tests
 board = board or {}
@@ -31,16 +32,16 @@ function log(...)
 end
 
 
-board.cell_at = function(board, x, y)
+function cell_at(x, y)
     return board.cells[y][x]
 end
 
 -- yields all cells on the board
-board.iterate = function(board)
+function iterate()
     return coroutine.wrap(function()
         for y = 1, board.height do
             for x = 1, board.width do
-                cell = board:cell_at(x,y)
+                cell = cell_at(x,y)
                 coroutine.yield(x, y, cell)
             end
         end
@@ -48,9 +49,9 @@ board.iterate = function(board)
 end
 
 -- yields all cells containing planets
-board.planets = function(board)
+function planets()
     return coroutine.wrap(function()
-        for x, y, cell in board:iterate() do
+        for x, y, cell in iterate() do
             if cell.planet then
                 coroutine.yield(x, y, cell)
             end
@@ -58,14 +59,14 @@ board.planets = function(board)
     end)
 end
 
-function create_order(source_x, source_y, dest_x, dest_y, shipcount)
+local function create_order(source_x, source_y, dest_x, dest_y, shipcount)
     return {source_x=source_x, source_y=source_y,
             dest_x=dest_x, dest_y=dest_y,
             shipcount=shipcount}
 end
 
 
-orders.create = function(orders, ...)
-    order = create_order(...)
-    table.insert(orders, order)
+function order(...)
+    local o = create_order(...)
+    table.insert(orders, o)
 end
