@@ -25,4 +25,8 @@ class BoardExecutor(object):
 
         self.lua.sandbox['orders'] = {}
 
+        # we're not reading out of these right now, but we don't want them to
+        # just pile up
+        self.lua.sandbox['logs'] = {}
+
         return ret
